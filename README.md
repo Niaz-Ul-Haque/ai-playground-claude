@@ -6,10 +6,8 @@ FYI, the entire code base took CLaude Code Max Opus 4.5 around 4-5 hours to comp
 Read below for the details of the other repo readme file
 
 Links to the repoes (there are buchn that are good, but im sharing this 2 for now)
-
-a) [Link 1](https://github.com/wshobson/agents/blob/main/docs/agents.md)
-
-b) [Link 2](https://github.com/zhsama/claude-sub-agent) <- This is what I am using
+1. [Link 1](https://github.com/wshobson/agents/blob/main/docs/agents.md)
+2. [Link 2](https://github.com/zhsama/claude-sub-agent) <- This is what I am using
 
 Also if you want to play with thi srepo, dm me for the google api key. As I have gemini  subscription, I beleive i have good amount of API tokens to use in my free tier (or maybe its free lol). but DM me for that info.
 
