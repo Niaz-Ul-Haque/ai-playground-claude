@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send } from 'lucide-react';
+import { Send, Mic, MicOff } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -14,7 +14,47 @@ const MAX_CHARS = 2000;
 
 export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
   const [message, setMessage] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          setMessage(transcript);
+        };
+
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -45,6 +85,21 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
     }
   };
 
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert('Voice recognition is not supported in your browser.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
   const remainingChars = MAX_CHARS - message.length;
   const isOverLimit = remainingChars < 0;
 
@@ -69,6 +124,23 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
               </span>
             </div>
           </div>
+
+          <Button
+            onClick={toggleVoiceInput}
+            disabled={disabled}
+            size="icon"
+            variant={isListening ? 'destructive' : 'outline'}
+            className="h-[60px] w-[60px] shrink-0"
+          >
+            {isListening ? (
+              <MicOff className="h-5 w-5" />
+            ) : (
+              <Mic className="h-5 w-5" />
+            )}
+            <span className="sr-only">
+              {isListening ? 'Stop recording' : 'Start voice input'}
+            </span>
+          </Button>
 
           <Button
             onClick={handleSend}
