@@ -14,7 +14,8 @@
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
       "Bash(netstat:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx shadcn@latest add progress checkbox select -y)"
     ],
     "deny": [],
     "ask": []

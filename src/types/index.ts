@@ -4,14 +4,40 @@ export type {
   AIActionType,
   Task,
   TaskSummary,
-  TaskFilters
+  TaskFilters,
+  SuggestedActionType,
+  SuggestedAction,
+  WorkflowType,
+  WorkflowStep,
+  Workflow,
+  RecommendationType,
+  ProcessRecommendation,
+  CycleTimeStats,
+  MaterialType,
+  PrefilledMaterial,
+  ChecklistItem,
+  TaskStats
 } from './task';
 
 // Client types
 export type {
   RiskProfile,
   Client,
-  ClientSummary
+  ClientSummary,
+  RelationshipType,
+  ClientRelationship,
+  TimelineEventType,
+  TimelineEvent,
+  ArtifactType,
+  ArtifactVersion,
+  Artifact,
+  AssetType,
+  AssetStatus,
+  AlertSeverity,
+  AlertType,
+  AssetAlert,
+  ClientAsset,
+  ClientWithDetails
 } from './client';
 
 // Chat types
@@ -41,3 +67,13 @@ export type {
   ChatContext,
   ChatAction
 } from './state';
+
+// Session types
+export type {
+  User,
+  Session,
+  ChatSession,
+  SessionState,
+  SessionContextType,
+  SessionAction
+} from './session';

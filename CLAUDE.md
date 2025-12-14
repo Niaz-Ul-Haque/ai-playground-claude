@@ -214,26 +214,6 @@ GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
 
 ---
 
-## Phase 1 MVP Scope
-
-### In Scope
-- [x] Single-page chat interface
-- [x] Message streaming with AI
-- [x] Task list display (TaskListCard)
-- [x] Individual task cards with approve/reject
-- [x] Client info lookup (ClientCard)
-- [x] AI auto-complete notifications (ReviewCard)
-- [x] Mock data for tasks/clients
-
-### Out of Scope (Phase 2+)
-- [ ] Real database (Supabase)
-- [ ] User authentication
-- [ ] Email integration
-- [ ] Calendar sync
-- [ ] Multi-user support
-
----
-
 ## Important Development Notes
 
 1. **Mock Everything First** - No real API calls to external services
@@ -242,37 +222,3 @@ GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
 4. **Cards in Messages** - AI responses can contain embedded React components
 5. **Mobile First** - Design for mobile, scale up to desktop
 ```
-
----
-
-## Step 6: Verify Your Structure
-
-Your folder should now look like this:
-```
-advisor-ai/
-├── .claude/
-│   ├── agents/
-│   │   ├── spec-orchestrator.md
-│   │   ├── spec-analyst.md
-│   │   ├── spec-architect.md
-│   │   ├── spec-planner.md
-│   │   ├── spec-developer.md
-│   │   ├── spec-tester.md
-│   │   ├── spec-reviewer.md
-│   │   ├── spec-validator.md
-│   │   ├── senior-frontend-architect.md
-│   │   ├── senior-backend-architect.md
-│   │   ├── ui-ux-master.md
-│   │   └── refactor-agent.md
-│   └── commands/
-│       └── agent-workflow.md
-├── docs/
-├── src/
-│   ├── app/
-│   ├── components/
-│   └── lib/
-├── CLAUDE.md
-├── package.json
-├── tailwind.config.ts
-├── tsconfig.json
-└── ...
