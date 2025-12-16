@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type {
   Session,
   ChatSession,
@@ -90,6 +91,7 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(sessionReducer, initialState);
+  const router = useRouter();
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -117,12 +119,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Persist session to localStorage
+  // Persist session to localStorage and cookies
   useEffect(() => {
     if (state.session) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.session));
+      const sessionJson = JSON.stringify(state.session);
+      localStorage.setItem(STORAGE_KEY, sessionJson);
+      // Set cookie for middleware - ensure it's not a guest session for protected routes
+      document.cookie = `ciri_session=${encodeURIComponent(sessionJson)}; path=/; max-age=2592000; SameSite=Lax`;
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      // Remove cookie
+      document.cookie = 'ciri_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
   }, [state.session]);
 
@@ -150,6 +157,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
 
+    // Set cookie immediately before dispatch
+    document.cookie = `ciri_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; SameSite=Lax`;
+    
     dispatch({ type: 'SET_SESSION', payload: session });
   }, []);
 
@@ -172,13 +182,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
 
+    // Set cookie immediately before dispatch
+    document.cookie = `ciri_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; SameSite=Lax`;
+    
     dispatch({ type: 'SET_SESSION', payload: session });
   }, []);
 
   const signOut = useCallback(() => {
     dispatch({ type: 'CLEAR_SESSION' });
     localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    // Remove cookie
+    document.cookie = 'ciri_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    router.push('/auth/login');
+  }, [router]);
 
   const continueAsGuest = useCallback(() => {
     const session: Session = {
@@ -211,6 +227,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
     };
 
+    // Set cookie immediately before dispatch
+    document.cookie = `ciri_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; SameSite=Lax`;
+    
     dispatch({ type: 'SET_SESSION', payload: session });
   }, [state.session]);
 

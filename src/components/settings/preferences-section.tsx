@@ -392,6 +392,64 @@ export function PreferencesSection({ settings, onSave }: PreferencesSectionProps
               }
             />
           </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Dashboard</Label>
+              <p className="text-sm text-muted-foreground">
+                Show Dashboard in sidebar
+              </p>
+            </div>
+            <Switch
+              checked={formData.visibleNavItems.dashboard}
+              onCheckedChange={(checked) => 
+                handleChange('visibleNavItems', { ...formData.visibleNavItems, dashboard: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Import</Label>
+              <p className="text-sm text-muted-foreground">
+                Show Import in sidebar
+              </p>
+            </div>
+            <Switch
+              checked={formData.visibleNavItems.import}
+              onCheckedChange={(checked) => 
+                handleChange('visibleNavItems', { ...formData.visibleNavItems, import: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Activity</Label>
+              <p className="text-sm text-muted-foreground">
+                Show Activity in sidebar
+              </p>
+            </div>
+            <Switch
+              checked={formData.visibleNavItems.activity}
+              onCheckedChange={(checked) => 
+                handleChange('visibleNavItems', { ...formData.visibleNavItems, activity: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Settings</Label>
+              <p className="text-sm text-muted-foreground">
+                Settings is always visible (cannot be disabled)
+              </p>
+            </div>
+            <Switch
+              checked={true}
+              disabled
+            />
+          </div>
         </CardContent>
       </Card>
 

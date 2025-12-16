@@ -243,6 +243,10 @@ export const mockPreferenceSettings: PreferenceSettings = {
     tasks: false,
     sources: false,
     automations: false,
+    dashboard: false,
+    import: false,
+    activity: false,
+    settings: true,
   },
 };
 

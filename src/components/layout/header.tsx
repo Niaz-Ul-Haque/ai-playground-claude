@@ -104,12 +104,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             {!isGuest && (
               <>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
+
                   <Link href="/settings" className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings

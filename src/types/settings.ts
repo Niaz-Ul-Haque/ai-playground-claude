@@ -140,6 +140,10 @@ export interface PreferenceSettings {
     tasks: boolean;
     sources: boolean;
     automations: boolean;
+    dashboard: boolean;
+    import: boolean;
+    activity: boolean;
+    settings: boolean;
   };
 }
 

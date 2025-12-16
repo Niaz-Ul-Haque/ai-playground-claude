@@ -31,7 +31,7 @@ interface NavItem {
   icon: React.ElementType;
   badge?: number;
   healthIndicator?: 'healthy' | 'warning' | 'error';
-  navKey?: 'chat' | 'clients' | 'opportunities' | 'tasks' | 'sources' | 'automations';
+  navKey?: 'chat' | 'clients' | 'opportunities' | 'tasks' | 'sources' | 'automations' | 'dashboard' | 'import' | 'activity' | 'settings';
 }
 
 const mainNavItems: NavItem[] = [
@@ -44,10 +44,10 @@ const mainNavItems: NavItem[] = [
 ];
 
 const secondaryNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Import', href: '/import', icon: Upload },
-  { label: 'Activity', href: '/activity', icon: Activity },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, navKey: 'dashboard' },
+  { label: 'Import', href: '/import', icon: Upload, navKey: 'import' },
+  { label: 'Activity', href: '/activity', icon: Activity, navKey: 'activity' },
+  { label: 'Settings', href: '/settings', icon: Settings, navKey: 'settings' },
 ];
 
 interface SidebarProps {
@@ -58,7 +58,7 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const { chatSessions, activeChatSessionId, createChatSession, selectChatSession, deleteChatSession } = useSession();
+  const { chatSessions, activeChatSessionId, createChatSession, selectChatSession, deleteChatSession, session } = useSession();
   const [visibleNavItems, setVisibleNavItems] = useState(getPreferenceSettings().visibleNavItems);
 
   // Reload settings when component mounts or when returning to page
@@ -118,14 +118,25 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarPr
         isCollapsed ? 'w-16' : 'w-64'
       )}
     >
-      {/* Logo */}
+      {/* Logo/User Info */}
       <div className="flex items-center justify-between h-14 px-4 border-b">
         {!isCollapsed && (
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">C</span>
+              <span className="text-primary-foreground font-bold text-sm">
+                {session?.user?.name?.[0]?.toUpperCase() || session?.user?.email?.[0]?.toUpperCase() || 'G'}
+              </span>
             </div>
-            <span className="font-semibold text-lg">Ciri</span>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm truncate">
+                {session?.user?.name || session?.user?.email || 'Guest'}
+              </span>
+              {session?.user?.name && session?.user?.email && (
+                <span className="text-xs text-muted-foreground truncate">
+                  {session.user.email}
+                </span>
+              )}
+            </div>
           </Link>
         )}
         <Button
@@ -142,6 +153,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarPr
         </Button>
       </div>
 
+      {/* Main Navigation Section */}
       <ScrollArea className="flex-1">
         <nav className="p-2 space-y-1">
           {/* Main Navigation */}
@@ -220,29 +232,34 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarPr
               )}
             </div>
           ))}
-
-          {/* Divider */}
-          <div className="my-4 border-t" />
-
-          {/* Secondary Navigation */}
-          {secondaryNavItems.map((item) => (
-            <Link key={item.href} href={item.href} onClick={onNavigate}>
-              <Button
-                variant={isActive(item.href) ? 'secondary' : 'ghost'}
-                className={cn(
-                  'w-full justify-start gap-3',
-                  isCollapsed && 'justify-center px-2'
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!isCollapsed && (
-                  <span className="flex-1 text-left">{item.label}</span>
-                )}
-              </Button>
-            </Link>
-          ))}
         </nav>
       </ScrollArea>
+
+      {/* Secondary Navigation - At Bottom, Only for authenticated users */}
+      {session && session.type === 'user' && (
+        <div className="border-t">
+          <nav className="p-2 space-y-1">
+            {secondaryNavItems
+              .filter((item) => !item.navKey || visibleNavItems[item.navKey])
+              .map((item) => (
+                <Link key={item.href} href={item.href} onClick={onNavigate}>
+                  <Button
+                    variant={isActive(item.href) ? 'secondary' : 'ghost'}
+                    className={cn(
+                      'w-full justify-start gap-3',
+                      isCollapsed && 'justify-center px-2'
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!isCollapsed && (
+                      <span className="flex-1 text-left">{item.label}</span>
+                    )}
+                  </Button>
+                </Link>
+              ))}
+          </nav>
+        </div>
+      )}
     </aside>
   );
 }
