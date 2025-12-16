@@ -45,13 +45,13 @@ describe('TaskCard', () => {
     expect(screen.getByText('high priority')).toBeInTheDocument();
   });
 
-  it('should display AI Completed badge when task is AI completed', () => {
+  it('should display Ciri Completed badge when task is Ciri completed', () => {
     const task = createMockTask({ aiCompleted: true });
     const data: TaskCardData = { task };
 
     renderWithProviders(<TaskCard data={data} />);
 
-    expect(screen.getByText('AI Completed')).toBeInTheDocument();
+    expect(screen.getByText('Ciri Completed')).toBeInTheDocument();
   });
 
   it('should display client name when present', () => {

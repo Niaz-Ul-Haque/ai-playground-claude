@@ -15,7 +15,10 @@
       "Bash(findstr:*)",
       "Bash(netstat:*)",
       "Bash(npm run dev:*)",
-      "Bash(npx shadcn@latest add progress checkbox select -y)"
+      "Bash(npx shadcn@latest add progress checkbox select -y)",
+      "Bash(dir /s /b \"C:\\Users\\User\\OneDrive\\Desktop\\Software works\\ai-playground-claude\\docs\")",
+      "Bash(npx shadcn@latest add alert-dialog switch -y)",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "ask": []

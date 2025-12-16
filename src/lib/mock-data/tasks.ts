@@ -1,4 +1,72 @@
-import type { Task } from '@/types/task';
+import type { Task, Label } from '@/types/task';
+
+// Mock Labels
+export const MOCK_LABELS: Label[] = [
+  { id: 'l1', name: 'Urgent', color: '#ef4444' },
+  { id: 'l2', name: 'Tax Planning', color: '#f59e0b' },
+  { id: 'l3', name: 'Client Meeting', color: '#3b82f6' },
+  { id: 'l4', name: 'Portfolio Review', color: '#8b5cf6' },
+  { id: 'l5', name: 'Compliance', color: '#ec4899' },
+  { id: 'l6', name: 'Research', color: '#10b981' },
+];
+
+// In-memory label store (for adding new labels in prototype)
+let labelStore = [...MOCK_LABELS];
+
+export function getLabels(): Label[] {
+  return labelStore;
+}
+
+export function createLabel(name: string, color: string): Label {
+  const newLabel: Label = {
+    id: `l${Date.now()}`,
+    name,
+    color,
+  };
+  labelStore.push(newLabel);
+  return newLabel;
+}
+
+export function deleteLabel(labelId: string): void {
+  labelStore = labelStore.filter(l => l.id !== labelId);
+  // Remove label from all tasks
+  taskStore.forEach(task => {
+    if (task.labels) {
+      task.labels = task.labels.filter(l => l.id !== labelId);
+    }
+  });
+}
+
+// Custom Statuses (Kanban columns)
+export interface CustomStatus {
+  id: string;
+  name: string;
+  order: number;
+}
+
+const DEFAULT_STATUSES: CustomStatus[] = [
+  { id: 'pending', name: 'Pending', order: 0 },
+  { id: 'in-progress', name: 'In Progress', order: 1 },
+  { id: 'needs-review', name: 'Needs Review', order: 2 },
+  { id: 'completed', name: 'Completed', order: 3 },
+];
+
+let customStatuses = [...DEFAULT_STATUSES];
+
+export function getCustomStatuses(): CustomStatus[] {
+  return customStatuses;
+}
+
+export function createCustomStatus(name: string): CustomStatus {
+  const maxOrder = Math.max(...customStatuses.map(s => s.order), -1);
+  const newStatus: CustomStatus = {
+    id: `status-${Date.now()}`,
+    name,
+    order: maxOrder + 1,
+  };
+  customStatuses.push(newStatus);
+  return newStatus;
+}
 
 export const MOCK_TASKS: Task[] = [
   {
@@ -11,6 +79,24 @@ export const MOCK_TASKS: Task[] = [
     clientName: 'Michael Johnson',
     priority: 'high',
     tags: ['portfolio', 'quarterly-review'],
+    labels: [MOCK_LABELS[3], MOCK_LABELS[0]], // Portfolio Review, Urgent
+    order: 0,
+    comments: [
+      {
+        id: 'c1',
+        text: 'Ciri analysis complete - rebalancing recommendations look solid',
+        authorId: 'system',
+        authorName: 'Ciri Assistant',
+        createdAt: '2025-12-04T08:30:00.000Z',
+      },
+      {
+        id: 'c2',
+        text: 'Will review and approve today',
+        authorId: 'user1',
+        authorName: 'Advisor',
+        createdAt: '2025-12-04T09:15:00.000Z',
+      }
+    ],
     createdAt: '2025-12-01T09:00:00.000Z',
     updatedAt: '2025-12-04T08:30:00.000Z',
     aiCompleted: true,
@@ -32,6 +118,9 @@ export const MOCK_TASKS: Task[] = [
     clientName: 'Sarah Chen',
     priority: 'medium',
     tags: ['email', 'rrsp', 'tax-planning'],
+    labels: [MOCK_LABELS[1]], // Tax Planning
+    order: 1,
+    comments: [],
     createdAt: '2025-12-02T10:00:00.000Z',
     updatedAt: '2025-12-04T07:15:00.000Z',
     aiCompleted: true,
@@ -74,6 +163,9 @@ export const MOCK_TASKS: Task[] = [
     clientName: 'Robert Thompson',
     priority: 'high',
     tags: ['call', 'tfsa'],
+    labels: [MOCK_LABELS[0]], // Urgent
+    order: 0,
+    comments: [],
     createdAt: '2025-12-02T14:00:00.000Z',
     updatedAt: '2025-12-02T14:00:00.000Z'
   },
@@ -98,6 +190,17 @@ export const MOCK_TASKS: Task[] = [
     dueDate: '2025-12-05T17:00:00.000Z',
     priority: 'medium',
     tags: ['market-commentary', 'quarterly'],
+    labels: [MOCK_LABELS[5]], // Research
+    order: 0,
+    comments: [
+      {
+        id: 'c3',
+        text: 'Draft is about 60% complete',
+        authorId: 'user1',
+        authorName: 'Advisor',
+        createdAt: '2025-12-04T08:00:00.000Z',
+      }
+    ],
     createdAt: '2025-12-01T10:00:00.000Z',
     updatedAt: '2025-12-04T08:00:00.000Z'
   },
@@ -296,7 +399,18 @@ export const MOCK_TASKS: Task[] = [
     dueDate: '2025-12-17T16:00:00.000Z',
     priority: 'medium',
     tags: ['scheduling', 'admin'],
+    labels: [],
+    order: 1,
+    comments: [],
     createdAt: '2025-12-13T08:00:00.000Z',
     updatedAt: '2025-12-13T08:00:00.000Z'
   }
 ];
+
+// In-memory task store for updates
+const taskStore = MOCK_TASKS.map(task => ({
+  ...task,
+  labels: task.labels || [],
+  comments: task.comments || [],
+  order: task.order ?? 999,
+}));

@@ -48,7 +48,7 @@ export function TaskCard({ data }: TaskCardProps) {
                 {task.priority} priority
               </Badge>
               {task.aiCompleted && (
-                <Badge variant="secondary">AI Completed</Badge>
+                <Badge variant="secondary">Ciri Completed</Badge>
               )}
             </div>
           </div>

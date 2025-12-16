@@ -56,7 +56,7 @@ export const MOCK_RECOMMENDATIONS: ProcessRecommendation[] = [
     id: 'rec-5',
     type: 'automation',
     title: 'Auto-Generate Meeting Notes',
-    description: 'Enable AI transcription and summary generation for all client meetings.',
+    description: 'Enable Ciri transcription and summary generation for all client meetings.',
     expectedBenefit: 'Save 15-20 minutes per meeting on note-taking. Capture more details accurately.',
     impactLevel: 'high',
     effort: 'medium',

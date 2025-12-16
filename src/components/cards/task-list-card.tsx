@@ -62,7 +62,7 @@ export function TaskListCard({ data }: TaskListCardProps) {
                       <p className="font-medium text-sm">{task.title}</p>
                       {task.aiCompleted && (
                         <Badge variant="secondary" className="text-xs">
-                          AI Completed
+                          Ciri Completed
                         </Badge>
                       )}
                     </div>

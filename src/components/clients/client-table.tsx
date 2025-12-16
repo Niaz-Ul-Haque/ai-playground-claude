@@ -68,7 +68,7 @@ function SortButton({ field, currentSortField, sortDirection, onSort, children }
     <Button
       variant="ghost"
       size="sm"
-      className="h-8 px-2 -ml-2 font-medium"
+      className="h-8 px-2 -ml-2 font-medium justify-start"
       onClick={() => onSort(field)}
     >
       {children}

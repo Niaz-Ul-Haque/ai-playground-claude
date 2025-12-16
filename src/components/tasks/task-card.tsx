@@ -144,11 +144,11 @@ export function TaskCard({
               </Link>
             )}
 
-            {/* AI Badge */}
+            {/* Ciri Badge */}
             {task.aiCompleted && (
               <Badge variant="outline" className="gap-1 text-purple-500 border-purple-500/30">
                 <Bot className="h-3 w-3" />
-                AI Completed
+                Ciri Completed
               </Badge>
             )}
 

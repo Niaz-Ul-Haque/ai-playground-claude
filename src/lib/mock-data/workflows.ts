@@ -23,8 +23,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       },
       {
         id: 'wf-1-s2',
-        name: 'Review AI Recommendations',
-        description: 'Review and approve AI-generated portfolio recommendations',
+        name: 'Review Ciri Recommendations',
+        description: 'Review and approve Ciri-generated portfolio recommendations',
         status: 'in_progress',
         order: 2,
         estimatedMinutes: 15,

@@ -25,7 +25,7 @@ export function WelcomeMessage({ onPromptClick }: WelcomeMessageProps) {
             <h1 className="text-3xl font-bold">Ciri</h1>
           </div>
           <p className="text-lg text-muted-foreground">
-            Your AI-powered assistant for managing tasks, clients, and workflows
+            Your Ciri-powered assistant for managing tasks, clients, and workflows
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export function WelcomeMessage({ onPromptClick }: WelcomeMessageProps) {
           <p>I can help you with:</p>
           <ul className="mt-2 space-y-1">
             <li>Viewing and managing daily tasks</li>
-            <li>Reviewing AI-completed work</li>
+            <li>Reviewing Ciri-completed work</li>
             <li>Looking up client information</li>
             <li>Answering questions about schedules</li>
           </ul>

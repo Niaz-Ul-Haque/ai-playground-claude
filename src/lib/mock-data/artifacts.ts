@@ -221,7 +221,7 @@ export const MOCK_ARTIFACTS: Artifact[] = [
     size: 620000,
     uploadedAt: '2025-12-13T14:20:00.000Z',
     versions: [
-      { id: 'v1', version: 1, uploadedAt: '2025-12-13T14:20:00.000Z', uploadedBy: 'system', fileSize: 620000, notes: 'AI-generated proposal' }
+      { id: 'v1', version: 1, uploadedAt: '2025-12-13T14:20:00.000Z', uploadedBy: 'system', fileSize: 620000, notes: 'Ciri-generated proposal' }
     ],
     tags: ['esg', 'proposal', 'inheritance'],
     description: 'ESG investment proposal for inheritance allocation.'
@@ -265,7 +265,7 @@ export const MOCK_ARTIFACTS: Artifact[] = [
     size: 350000,
     uploadedAt: '2025-12-14T09:30:00.000Z',
     versions: [
-      { id: 'v1', version: 1, uploadedAt: '2025-12-14T09:30:00.000Z', uploadedBy: 'system', fileSize: 350000, notes: 'AI-generated analysis' }
+      { id: 'v1', version: 1, uploadedAt: '2025-12-14T09:30:00.000Z', uploadedBy: 'system', fileSize: 350000, notes: 'Ciri-generated analysis' }
     ],
     tags: ['analysis', 'home-purchase'],
     description: 'TFSA vs down payment allocation analysis.'
@@ -312,7 +312,7 @@ export const MOCK_ARTIFACTS: Artifact[] = [
     size: 380000,
     uploadedAt: '2025-12-13T16:45:00.000Z',
     versions: [
-      { id: 'v1', version: 1, uploadedAt: '2025-12-13T16:45:00.000Z', uploadedBy: 'system', fileSize: 380000, notes: 'AI-generated report' }
+      { id: 'v1', version: 1, uploadedAt: '2025-12-13T16:45:00.000Z', uploadedBy: 'system', fileSize: 380000, notes: 'Ciri-generated report' }
     ],
     tags: ['resp', 'annual-report'],
     description: 'RESP annual performance report for all children.'

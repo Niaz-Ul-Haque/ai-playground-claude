@@ -8,6 +8,20 @@ export type AIActionType =
   | 'reminder'
   | 'analysis';
 
+export interface Label {
+  id: string;
+  name: string;
+  color: string; // hex color code
+}
+
+export interface Comment {
+  id: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -18,6 +32,9 @@ export interface Task {
   clientName?: string;
   priority: 'low' | 'medium' | 'high';
   tags: string[];
+  labels?: Label[]; // New: Kanban labels
+  comments?: Comment[]; // New: Task comments
+  order?: number; // New: Order within a column
   createdAt: string;
   updatedAt: string;
   completedAt?: string;

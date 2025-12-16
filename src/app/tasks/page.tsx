@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import type { TaskFilters } from '@/types/task';
+import type { TaskFilters, Task, Label } from '@/types/task';
 import {
   TaskStatsDisplay,
   TaskFiltersComponent,
@@ -11,6 +11,8 @@ import {
   RecommendationsPanel,
   PrefilledMaterials,
   CycleTimeList,
+  KanbanBoard,
+  TaskDetailsSheet,
 } from '@/components/tasks';
 import {
   getTaskStats,
@@ -23,16 +25,29 @@ import {
   getRecommendations,
   updateRecommendation,
   getCycleTimeStats,
+  getLabels,
+  createLabel,
+  getCustomStatuses,
+  updateTaskStatus,
+  addLabelToTask,
+  removeLabelFromTask,
+  addCommentToTask,
 } from '@/lib/mock-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { LayoutList, LayoutGrid } from 'lucide-react';
 
 type ViewTab = 'today' | 'week' | 'all' | 'workflows' | 'insights';
+type ViewMode = 'list' | 'board';
 
 export default function TasksPage() {
   const [activeTab, setActiveTab] = useState<ViewTab>('today');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Refresh data helper
   const refresh = useCallback(() => {
@@ -62,6 +77,10 @@ export default function TasksPage() {
 
     return searchTasks(baseFilters);
   }, [activeTab, filters, refreshKey]);
+
+  // Get labels and statuses for Kanban
+  const labels = useMemo(() => getLabels(), [refreshKey]);
+  const statuses = useMemo(() => getCustomStatuses(), [refreshKey]);
 
   // Get other data
   const suggestedActions = useMemo(() => getSuggestedActions('pending'), [refreshKey]);
@@ -121,6 +140,52 @@ export default function TasksPage() {
     alert(`Downloading material ${materialId}... (mock action)`);
   }, []);
 
+  // Kanban handlers
+  const handleTaskClick = useCallback((task: Task) => {
+    setSelectedTask(task);
+    setDetailsOpen(true);
+  }, []);
+
+  const handleTaskMove = useCallback((taskId: string, newStatus: string, newOrder: number) => {
+    updateTaskStatus(taskId, newStatus, newOrder);
+    refresh();
+  }, [refresh]);
+
+  const handleAddLabel = useCallback((taskId: string, label: Label) => {
+    addLabelToTask(taskId, label);
+    // Update selected task if it's the one being modified
+    if (selectedTask?.id === taskId) {
+      const updated = searchTasks({}).find(t => t.id === taskId);
+      if (updated) setSelectedTask(updated);
+    }
+    refresh();
+  }, [selectedTask, refresh]);
+
+  const handleRemoveLabel = useCallback((taskId: string, labelId: string) => {
+    removeLabelFromTask(taskId, labelId);
+    // Update selected task if it's the one being modified
+    if (selectedTask?.id === taskId) {
+      const updated = searchTasks({}).find(t => t.id === taskId);
+      if (updated) setSelectedTask(updated);
+    }
+    refresh();
+  }, [selectedTask, refresh]);
+
+  const handleCreateLabel = useCallback((name: string, color: string) => {
+    createLabel(name, color);
+    refresh();
+  }, [refresh]);
+
+  const handleAddComment = useCallback((taskId: string, text: string, authorName: string) => {
+    addCommentToTask(taskId, text, authorName);
+    // Update selected task if it's the one being modified
+    if (selectedTask?.id === taskId) {
+      const updated = searchTasks({}).find(t => t.id === taskId);
+      if (updated) setSelectedTask(updated);
+    }
+    refresh();
+  }, [selectedTask, refresh]);
+
   return (
     <div className="h-full flex flex-col">
       {/* Page Header */}
@@ -132,6 +197,29 @@ export default function TasksPage() {
               Manage your tasks, workflows, and AI-suggested actions
             </p>
           </div>
+          {/* View Mode Toggle - Only show on task views */}
+          {(activeTab === 'today' || activeTab === 'week' || activeTab === 'all') && (
+            <div className="flex items-center gap-2 border rounded-md p-1">
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8"
+                onClick={() => setViewMode('list')}
+              >
+                <LayoutList className="h-4 w-4 mr-1" />
+                List
+              </Button>
+              <Button
+                variant={viewMode === 'board' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8"
+                onClick={() => setViewMode('board')}
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Board
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -191,17 +279,28 @@ export default function TasksPage() {
                   />
                 )}
 
-                {/* Filters */}
-                <TaskFiltersComponent filters={filters} onFiltersChange={setFilters} />
+                {/* Filters - Only show in list view */}
+                {viewMode === 'list' && (
+                  <TaskFiltersComponent filters={filters} onFiltersChange={setFilters} />
+                )}
 
-                {/* Task List */}
-                <TaskList
-                  tasks={tasks}
-                  onApprove={handleApproveTask}
-                  onReject={handleRejectTask}
-                  onMarkComplete={handleMarkComplete}
-                  emptyMessage="No tasks due today. You're all caught up!"
-                />
+                {/* Task List or Board */}
+                {viewMode === 'list' ? (
+                  <TaskList
+                    tasks={tasks}
+                    onApprove={handleApproveTask}
+                    onReject={handleRejectTask}
+                    onMarkComplete={handleMarkComplete}
+                    emptyMessage="No tasks due today. You're all caught up!"
+                  />
+                ) : (
+                  <KanbanBoard
+                    tasks={tasks}
+                    statuses={statuses}
+                    onTaskClick={handleTaskClick}
+                    onTaskMove={handleTaskMove}
+                  />
+                )}
               </TabsContent>
 
               {/* This Week View */}
@@ -215,32 +314,54 @@ export default function TasksPage() {
                   />
                 )}
 
-                {/* Filters */}
-                <TaskFiltersComponent filters={filters} onFiltersChange={setFilters} />
+                {/* Filters - Only show in list view */}
+                {viewMode === 'list' && (
+                  <TaskFiltersComponent filters={filters} onFiltersChange={setFilters} />
+                )}
 
-                {/* Task List */}
-                <TaskList
-                  tasks={tasks}
-                  onApprove={handleApproveTask}
-                  onReject={handleRejectTask}
-                  onMarkComplete={handleMarkComplete}
-                  emptyMessage="No tasks due this week."
-                />
+                {/* Task List or Board */}
+                {viewMode === 'list' ? (
+                  <TaskList
+                    tasks={tasks}
+                    onApprove={handleApproveTask}
+                    onReject={handleRejectTask}
+                    onMarkComplete={handleMarkComplete}
+                    emptyMessage="No tasks due this week."
+                  />
+                ) : (
+                  <KanbanBoard
+                    tasks={tasks}
+                    statuses={statuses}
+                    onTaskClick={handleTaskClick}
+                    onTaskMove={handleTaskMove}
+                  />
+                )}
               </TabsContent>
 
               {/* All Tasks View */}
               <TabsContent value="all" className="mt-0 space-y-6">
-                {/* Filters */}
-                <TaskFiltersComponent filters={filters} onFiltersChange={setFilters} />
+                {/* Filters - Only show in list view */}
+                {viewMode === 'list' && (
+                  <TaskFiltersComponent filters={filters} onFiltersChange={setFilters} />
+                )}
 
-                {/* Task List */}
-                <TaskList
-                  tasks={tasks}
-                  onApprove={handleApproveTask}
-                  onReject={handleRejectTask}
-                  onMarkComplete={handleMarkComplete}
-                  emptyMessage="No tasks found matching your criteria."
-                />
+                {/* Task List or Board */}
+                {viewMode === 'list' ? (
+                  <TaskList
+                    tasks={tasks}
+                    onApprove={handleApproveTask}
+                    onReject={handleRejectTask}
+                    onMarkComplete={handleMarkComplete}
+                    emptyMessage="No tasks found matching your criteria."
+                  />
+                ) : (
+                  <KanbanBoard
+                    tasks={tasks}
+                    statuses={statuses}
+                    onTaskClick={handleTaskClick}
+                    onTaskMove={handleTaskMove}
+                  />
+                )}
               </TabsContent>
 
               {/* Workflows View */}
@@ -295,6 +416,18 @@ export default function TasksPage() {
           </ScrollArea>
         </Tabs>
       </div>
+
+      {/* Task Details Sheet */}
+      <TaskDetailsSheet
+        task={selectedTask}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        availableLabels={labels}
+        onAddLabel={handleAddLabel}
+        onRemoveLabel={handleRemoveLabel}
+        onCreateLabel={handleCreateLabel}
+        onAddComment={handleAddComment}
+      />
     </div>
   );
 }

@@ -558,8 +558,8 @@ No white-labeling or theming options.
 | **Client** | A customer of the financial advisor |
 | **Card** | A UI component embedded in chat messages |
 | **Intent** | The classified purpose of a user's message |
-| **AI-Completed** | A task automatically completed by the AI assistant |
-| **Review** | The process of approving or rejecting AI-completed work |
+| **Ciri-Completed** | A task automatically completed by the Ciri assistant |
+| **Review** | The process of approving or rejecting Ciri-completed work |
 | **Streaming** | Real-time token-by-token delivery of AI responses |
 
 ---

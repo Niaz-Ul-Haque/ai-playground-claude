@@ -238,7 +238,7 @@ Scenario: User requests pending reviews
   AND there are tasks with status "needs-review"
   WHEN I ask "What needs my approval?"
   THEN the AI shows a TaskListCard filtered to "needs-review" status
-  AND each task shows the AI-completed indicator
+  AND each task shows the Ciri-completed indicator
   AND Approve/Reject actions are accessible
 ```
 
@@ -271,7 +271,7 @@ Scenario: View individual task details
     | Client Name | Yes |
     | Due Date/Time | Yes |
     | Status | Yes (badge) |
-    | AI-Completed | Yes (if applicable) |
+    | Ciri-Completed | Yes (if applicable) |
 ```
 
 ### AC-TASKCARD-002: Status Badge Colors
@@ -447,16 +447,16 @@ Scenario: View client's tasks from ClientCard
 ### AC-REVIEW-001: Review Card Display
 
 ```gherkin
-Scenario: AI-completed task review
-  GIVEN a task has been auto-completed by the AI
+Scenario: Ciri-completed task review
+  GIVEN a task has been auto-completed by Ciri
   AND the status is "needs-review"
   WHEN the ReviewCard is displayed
   THEN I see:
     | Element | Displayed |
-    | AI indicator | "AI Completed" badge |
-    | Action summary | What the AI did |
+    | Ciri indicator | "Ciri Completed" badge |
+    | Action summary | What Ciri did |
     | Client name | Associated client |
-    | Timestamp | When AI completed |
+    | Timestamp | When Ciri completed |
     | Approve button | Prominently displayed |
     | Reject button | Prominently displayed |
 ```

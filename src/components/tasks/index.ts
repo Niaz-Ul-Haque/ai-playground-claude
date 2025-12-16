@@ -7,3 +7,7 @@ export { WorkflowProgressCard, WorkflowList } from './workflow-progress';
 export { CycleTimeCard, CycleTimeList } from './cycle-time-display';
 export { RecommendationsPanel } from './recommendations-panel';
 export { PrefilledMaterials } from './prefilled-materials';
+export { KanbanBoard } from './kanban-board';
+export { KanbanColumn } from './kanban-column';
+export { KanbanTaskCard } from './kanban-task-card';
+export { TaskDetailsSheet } from './task-details-sheet';

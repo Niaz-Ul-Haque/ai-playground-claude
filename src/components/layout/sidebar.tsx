@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSession } from '@/context/session-context';
+import { getPreferenceSettings } from '@/lib/mock-data';
 import {
   MessageSquare,
   Users,
@@ -30,15 +31,16 @@ interface NavItem {
   icon: React.ElementType;
   badge?: number;
   healthIndicator?: 'healthy' | 'warning' | 'error';
+  navKey?: 'chat' | 'clients' | 'opportunities' | 'tasks' | 'sources' | 'automations';
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Chat', href: '/', icon: MessageSquare },
-  { label: 'Clients', href: '/clients', icon: Users },
-  { label: 'Opportunities', href: '/opportunities', icon: Lightbulb, badge: 12 },
-  { label: 'Tasks', href: '/tasks', icon: CheckSquare, badge: 5 },
-  { label: 'Sources', href: '/integrations', icon: Link2, healthIndicator: 'healthy' },
-  { label: 'Automations', href: '/automations', icon: Settings2, badge: 2 },
+  { label: 'Chat', href: '/', icon: MessageSquare, navKey: 'chat' },
+  { label: 'Clients', href: '/clients', icon: Users, navKey: 'clients' },
+  { label: 'Opportunities', href: '/opportunities', icon: Lightbulb, badge: 12, navKey: 'opportunities' },
+  { label: 'Tasks', href: '/tasks', icon: CheckSquare, badge: 5, navKey: 'tasks' },
+  { label: 'Sources', href: '/integrations', icon: Link2, healthIndicator: 'healthy', navKey: 'sources' },
+  { label: 'Automations', href: '/automations', icon: Settings2, badge: 2, navKey: 'automations' },
 ];
 
 const secondaryNavItems: NavItem[] = [
@@ -57,6 +59,33 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { chatSessions, activeChatSessionId, createChatSession, selectChatSession, deleteChatSession } = useSession();
+  const [visibleNavItems, setVisibleNavItems] = useState(getPreferenceSettings().visibleNavItems);
+
+  // Reload settings when component mounts or when returning to page
+  useEffect(() => {
+    const loadSettings = () => {
+      const settings = getPreferenceSettings();
+      setVisibleNavItems(settings.visibleNavItems);
+    };
+    
+    loadSettings();
+    
+    // Listen for storage events to update when settings change
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'preference-settings') {
+        loadSettings();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    // Also listen for custom event for same-window updates
+    window.addEventListener('settings-updated', loadSettings as EventListener);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('settings-updated', loadSettings as EventListener);
+    };
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/') {
@@ -75,6 +104,12 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarPr
   };
 
   const recentSessions = chatSessions.slice(0, 5);
+  
+  // Filter main nav items based on visibility settings
+  const filteredMainNavItems = mainNavItems.filter((item) => {
+    if (!item.navKey) return true;
+    return visibleNavItems[item.navKey];
+  });
 
   return (
     <aside
@@ -110,7 +145,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }: SidebarPr
       <ScrollArea className="flex-1">
         <nav className="p-2 space-y-1">
           {/* Main Navigation */}
-          {mainNavItems.map((item) => (
+          {filteredMainNavItems.map((item) => (
             <div key={item.href}>
               <Link href={item.href} onClick={onNavigate}>
                 <Button

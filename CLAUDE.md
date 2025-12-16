@@ -89,7 +89,7 @@ The AI parses intent and renders appropriate UI components inline with text resp
 2. **TaskCard** - Single task with approve/reject actions
 3. **TaskListCard** - Multiple tasks (today's tasks, pending reviews)
 4. **ClientCard** - Client information display
-5. **ReviewCard** - AI-completed action needing approval
+5. **ReviewCard** - Ciri-completed action needing approval
 6. **ConfirmationCard** - Success/failure feedback
 
 ### User Intents
