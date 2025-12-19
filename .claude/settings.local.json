@@ -18,7 +18,8 @@
       "Bash(npx shadcn@latest add progress checkbox select -y)",
       "Bash(dir /s /b \"C:\\Users\\User\\OneDrive\\Desktop\\Software works\\ai-playground-claude\\docs\")",
       "Bash(npx shadcn@latest add alert-dialog switch -y)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

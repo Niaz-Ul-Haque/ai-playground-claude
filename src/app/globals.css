@@ -120,3 +120,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Fix for Radix ScrollArea viewport content width */
+[data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  width: 100% !important;
+}

@@ -3,16 +3,22 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { User, Bot } from 'lucide-react';
 import type { Message } from '@/types/chat';
+import type { Block } from '@/types/chat-blocks';
 import { formatRelativeDate } from '@/lib/utils/format';
 import { parseMessageContent } from '@/lib/ai/parse-content';
-import { CardRenderer } from './card-renderer';
+import { CardRenderer, BlockRenderer } from './block-renderer';
+import { StreamingCursor } from './typing-indicator';
 import { cn } from '@/lib/utils';
 
 interface MessageItemProps {
   message: Message;
+  /** Whether this message is currently being streamed */
+  isStreaming?: boolean;
+  /** Blocks to render (from new block system) */
+  blocks?: Block[];
 }
 
-export function MessageItem({ message }: MessageItemProps) {
+export function MessageItem({ message, isStreaming = false, blocks }: MessageItemProps) {
   const isUser = message.role === 'user';
   const segments = parseMessageContent(message.content);
 
@@ -42,6 +48,10 @@ export function MessageItem({ message }: MessageItemProps) {
         <div className={cn('space-y-2', isUser && 'flex flex-col items-end')}>
           {segments.map((segment, index) => {
             if (segment.type === 'text') {
+              const isLastTextSegment =
+                index === segments.length - 1 ||
+                segments.slice(index + 1).every(s => s.type !== 'text');
+
               return (
                 <div
                   key={index}
@@ -53,6 +63,8 @@ export function MessageItem({ message }: MessageItemProps) {
                   )}
                 >
                   {segment.content}
+                  {/* Show streaming cursor on the last text segment */}
+                  {isStreaming && isLastTextSegment && !isUser && <StreamingCursor />}
                 </div>
               );
             }
@@ -68,8 +80,19 @@ export function MessageItem({ message }: MessageItemProps) {
             return null;
           })}
 
+          {/* Render new Block types */}
+          {blocks && blocks.length > 0 && (
+            <>
+              {blocks.map((block) => (
+                <div key={block.id} className="w-full max-w-2xl">
+                  <BlockRenderer block={block} />
+                </div>
+              ))}
+            </>
+          )}
+
           {/* Fallback for messages with explicit cards array */}
-          {message.cards && message.cards.length > 0 && segments.every(s => s.type === 'text') && (
+          {message.cards && message.cards.length > 0 && segments.every(s => s.type === 'text') && !blocks?.length && (
             <>
               {message.cards.map((card, index) => (
                 <div key={`card-${index}`} className="w-full max-w-2xl">
@@ -78,8 +101,40 @@ export function MessageItem({ message }: MessageItemProps) {
               ))}
             </>
           )}
+
+          {/* Show cursor for empty streaming messages */}
+          {isStreaming && !isUser && segments.length === 0 && (
+            <div className="rounded-lg px-4 py-2 text-sm bg-muted">
+              <StreamingCursor />
+            </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * StreamingMessageItem - A message item specifically for streaming responses
+ * Shows progressive text updates with animated cursor
+ */
+interface StreamingMessageItemProps {
+  content: string;
+  blocks?: Block[];
+  timestamp?: string;
+}
+
+export function StreamingMessageItem({ content, blocks, timestamp }: StreamingMessageItemProps) {
+  return (
+    <MessageItem
+      message={{
+        id: 'streaming',
+        role: 'assistant',
+        content,
+        timestamp: timestamp || new Date().toISOString(),
+      }}
+      isStreaming={true}
+      blocks={blocks}
+    />
   );
 }

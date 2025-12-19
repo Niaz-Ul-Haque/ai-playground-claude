@@ -12,7 +12,7 @@ import type { Card } from '@/types/chat';
 
 // Create Google instance with explicit API key
 const google = createGoogleGenerativeAI({
-  apiKey: 'ASK NIAZ FOR THIS LOL',
+  apiKey: 'ASK NIAZ LOL',
 });
 
 // Remove edge runtime as it has issues with env variables
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
 
     // Generate response using Google Gemini
     const { text } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-2.5-flash-lite'),
       system: systemPrompt,
       prompt: `${userPrompt}\n\nUser message: ${message}`,
       temperature: 0.7,

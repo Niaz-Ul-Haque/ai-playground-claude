@@ -23,6 +23,10 @@ export interface ChatSession {
   updatedAt: string;
   messageCount: number;
   preview?: string;
+  /** Preview of last message */
+  lastMessage?: string;
+  /** Whether session is pinned */
+  isPinned?: boolean;
 }
 
 export interface SessionState {
@@ -42,6 +46,7 @@ export interface SessionContextType extends SessionState {
   selectChatSession: (id: string) => void;
   deleteChatSession: (id: string) => void;
   updateChatSessionTitle: (id: string, title: string) => void;
+  togglePinChatSession: (id: string) => void;
 }
 
 export type SessionAction =

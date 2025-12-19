@@ -32,12 +32,14 @@ const formatCurrency = (value: number) => {
 };
 
 const getInitials = (name: string) => {
+  if (!name) return 'NA';
   return name
     .split(' ')
+    .filter(n => n.length > 0)
     .map((n) => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || 'NA';
 };
 
 const getRiskBadgeVariant = (risk: string) => {

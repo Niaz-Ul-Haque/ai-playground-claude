@@ -19,6 +19,72 @@ export type {
   TaskStats
 } from './task';
 
+// Tool System Types (Phase 1)
+export type {
+  ToolCategory,
+  EntityType,
+  ToolParameterType,
+  ToolParameter,
+  ToolRenderBlock,
+  ToolDefinition,
+  ToolResult,
+  ToolHandler,
+  ToolRegistry,
+  ToolValidationResult,
+  ToolExecutionContext
+} from './tools';
+
+// Execution Plan Types (Phase 1)
+export type {
+  IntentCategory,
+  ClarificationNeeded,
+  MultiMatch,
+  ExecutionPlan,
+  IntentClassificationResult,
+  PendingAction,
+  IntentRoutingContext,
+  IntentHistoryEntry
+} from './execution-plan';
+// Note: ConfidenceLevel is exported from review-queue.ts (same type)
+// Note: ExtractedEntities is exported from intent.ts (Phase 1 uses its own version via direct import)
+
+// Chat Block Types (Phase 1)
+export type {
+  BlockType,
+  BaseBlock,
+  ClientTableBlockData,
+  OpportunityListBlockData,
+  AutomationListBlockData,
+  ClientProfileBlockData,
+  OpportunityDetailBlockData,
+  WorkflowStatusBlockData,
+  TimelineBlockData,
+  ChartBlockData,
+  ConfirmActionBlockData,
+  SelectEntityBlockData,
+  ExportDownloadBlockData,
+  TextBlockData,
+  ErrorBlockData,
+  Block,
+  BlockDataByType,
+  BlockRenderOptions
+} from './chat-blocks';
+// Note: ChartDataPoint and ChartDataset are exported from analytics.ts
+
+// Chat Session Types (Phase 1)
+export type {
+  ExtendedChatSession,
+  ChatSessionSummary,
+  StreamingStatus,
+  StreamChunk,
+  ChatStreamContext,
+  ChatSessionState,
+  SessionStorage,
+  SessionManagerAction,
+  TitleGenerationConfig,
+  SessionExport
+} from './chat-session';
+
 // Client types
 export type {
   RiskProfile,

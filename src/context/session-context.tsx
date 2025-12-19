@@ -13,6 +13,16 @@ import type {
 const STORAGE_KEY = 'ciri_session';
 const CHAT_SESSIONS_KEY = 'ciri_chat_sessions';
 
+// Helper function to set session cookie
+function setSessionCookie(session: Session | null): void {
+  if (session) {
+    const sessionJson = JSON.stringify(session);
+    document.cookie = `ciri_session=${encodeURIComponent(sessionJson)}; path=/; max-age=2592000; SameSite=Lax`;
+  } else {
+    document.cookie = 'ciri_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+}
+
 const initialState: SessionState = {
   session: null,
   isLoading: true,
@@ -107,11 +117,33 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (storedChatSessions) {
-        const chatSessions = JSON.parse(storedChatSessions) as ChatSession[];
+        const data = JSON.parse(storedChatSessions);
+        // Handle both legacy array format and new {version, sessions} format
+        let chatSessions: ChatSession[];
+        if (Array.isArray(data)) {
+          chatSessions = data;
+        } else if (data && typeof data === 'object' && Array.isArray(data.sessions)) {
+          // New format from session-manager
+          chatSessions = data.sessions.map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt,
+            lastMessage: s.messages?.[s.messages.length - 1]?.content || 'No messages',
+            messageCount: s.messages?.length || 0,
+            isPinned: s.isPinned || false,
+          }));
+        } else {
+          console.warn('Invalid chat sessions data format, resetting to empty array');
+          chatSessions = [];
+        }
         dispatch({ type: 'SET_CHAT_SESSIONS', payload: chatSessions });
         if (chatSessions.length > 0) {
           dispatch({ type: 'SET_ACTIVE_CHAT_SESSION', payload: chatSessions[0].id });
         }
+      } else {
+        // Initialize empty array if no data exists
+        dispatch({ type: 'SET_CHAT_SESSIONS', payload: [] });
       }
     } catch (error) {
       console.error('Failed to load session:', error);
@@ -122,15 +154,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   // Persist session to localStorage and cookies
   useEffect(() => {
     if (state.session) {
-      const sessionJson = JSON.stringify(state.session);
-      localStorage.setItem(STORAGE_KEY, sessionJson);
-      // Set cookie for middleware - ensure it's not a guest session for protected routes
-      document.cookie = `ciri_session=${encodeURIComponent(sessionJson)}; path=/; max-age=2592000; SameSite=Lax`;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.session));
     } else {
       localStorage.removeItem(STORAGE_KEY);
-      // Remove cookie
-      document.cookie = 'ciri_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
+    // Use helper function to set/clear cookie
+    setSessionCookie(state.session);
   }, [state.session]);
 
   // Persist chat sessions to localStorage
@@ -158,7 +187,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Set cookie immediately before dispatch
-    document.cookie = `ciri_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; SameSite=Lax`;
+    setSessionCookie(session);
     
     dispatch({ type: 'SET_SESSION', payload: session });
   }, []);
@@ -183,7 +212,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Set cookie immediately before dispatch
-    document.cookie = `ciri_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; SameSite=Lax`;
+    setSessionCookie(session);
     
     dispatch({ type: 'SET_SESSION', payload: session });
   }, []);
@@ -191,8 +220,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(() => {
     dispatch({ type: 'CLEAR_SESSION' });
     localStorage.removeItem(STORAGE_KEY);
-    // Remove cookie
-    document.cookie = 'ciri_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    // Remove cookie using helper
+    setSessionCookie(null);
     router.push('/auth/login');
   }, [router]);
 
@@ -228,7 +257,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Set cookie immediately before dispatch
-    document.cookie = `ciri_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; SameSite=Lax`;
+    setSessionCookie(session);
     
     dispatch({ type: 'SET_SESSION', payload: session });
   }, [state.session]);
@@ -243,11 +272,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
 
     dispatch({ type: 'ADD_CHAT_SESSION', payload: newSession });
+    
+    // Dispatch event to sync with ChatContext
+    window.dispatchEvent(new CustomEvent('chat-session-created', { 
+      detail: { sessionId: newSession.id } 
+    }));
+    
     return newSession;
   }, []);
 
   const selectChatSession = useCallback((id: string) => {
     dispatch({ type: 'SET_ACTIVE_CHAT_SESSION', payload: id });
+    
+    // Dispatch event to sync with ChatContext
+    window.dispatchEvent(new CustomEvent('chat-session-selected', { 
+      detail: { sessionId: id } 
+    }));
   }, []);
 
   const deleteChatSession = useCallback((id: string) => {
@@ -261,6 +301,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const togglePinChatSession = useCallback((id: string) => {
+    const session = state.chatSessions.find(s => s.id === id);
+    if (session) {
+      dispatch({
+        type: 'UPDATE_CHAT_SESSION',
+        payload: { 
+          id, 
+          updates: { 
+            isPinned: !session.isPinned, 
+            updatedAt: new Date().toISOString() 
+          } 
+        },
+      });
+    }
+  }, [state.chatSessions]);
+
   const contextValue: SessionContextType = {
     ...state,
     signIn,
@@ -272,6 +328,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     selectChatSession,
     deleteChatSession,
     updateChatSessionTitle,
+    togglePinChatSession,
   };
 
   return (

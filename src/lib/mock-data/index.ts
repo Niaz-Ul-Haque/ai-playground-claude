@@ -4,6 +4,8 @@ import type {
   TaskStats,
   SuggestedAction,
   Workflow,
+  WorkflowType,
+  WorkflowStep,
   ProcessRecommendation,
   PrefilledMaterial,
   CycleTimeStats,
@@ -1849,4 +1851,542 @@ export function getBillingSettings(): BillingSettings {
 export function updateBillingSettings(updates: Partial<BillingSettings>): BillingSettings {
   billingSettings = { ...billingSettings, ...updates };
   return { ...billingSettings };
+}
+
+// ============================================
+// Phase 2: Extended CRUD Functions
+// ============================================
+
+// ============================================
+// Client CRUD (Phase 2)
+// ============================================
+
+// Archive storage for soft-deleted entities
+const archivedClients: Client[] = [];
+const archivedTasks: Task[] = [];
+const archivedOpportunities: Opportunity[] = [];
+
+/**
+ * Create a new client
+ */
+export function createClient(data: Omit<Client, 'id' | 'createdAt'>): Client {
+  const newClient: Client = {
+    ...data,
+    id: `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    createdAt: new Date().toISOString(),
+    lastContact: data.lastContact || new Date().toISOString(),
+    status: data.status || 'prospect',
+  };
+
+  clients.push(newClient);
+  return newClient;
+}
+
+/**
+ * Update an existing client
+ */
+export function updateClient(id: string, updates: Partial<Client>): Client | null {
+  const index = clients.findIndex(c => c.id === id);
+  if (index === -1) return null;
+
+  clients[index] = {
+    ...clients[index],
+    ...updates,
+  };
+
+  return clients[index];
+}
+
+/**
+ * Archive a client (soft delete)
+ */
+export function archiveClient(id: string): boolean {
+  const index = clients.findIndex(c => c.id === id);
+  if (index === -1) return false;
+
+  const archivedClient = {
+    ...clients[index],
+    status: 'inactive' as Client['status'],
+  };
+
+  archivedClients.push(archivedClient);
+  clients.splice(index, 1);
+
+  return true;
+}
+
+/**
+ * Restore an archived client
+ */
+export function restoreClient(id: string): Client | null {
+  const index = archivedClients.findIndex(c => c.id === id);
+  if (index === -1) return null;
+
+  const restoredClient = {
+    ...archivedClients[index],
+    status: 'active' as Client['status'],
+  };
+
+  archivedClients.splice(index, 1);
+  clients.push(restoredClient);
+
+  return restoredClient;
+}
+
+/**
+ * Get archived clients
+ */
+export function getArchivedClients(): Client[] {
+  return [...archivedClients];
+}
+
+// ============================================
+// Task CRUD (Phase 2)
+// ============================================
+
+/**
+ * Create a new task
+ */
+export function createTask(data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Task {
+  const newTask: Task = {
+    ...data,
+    id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    description: data.description || '',
+    tags: data.tags || [],
+    labels: data.labels || [],
+    comments: data.comments || [],
+    order: data.order ?? tasks.length,
+  };
+
+  tasks.push(newTask);
+  return newTask;
+}
+
+/**
+ * Delete a task (soft delete - moves to archive)
+ */
+export function deleteTask(id: string): boolean {
+  const index = tasks.findIndex(t => t.id === id);
+  if (index === -1) return false;
+
+  archivedTasks.push(tasks[index]);
+  tasks.splice(index, 1);
+
+  return true;
+}
+
+/**
+ * Restore a deleted task
+ */
+export function restoreTask(id: string): Task | null {
+  const index = archivedTasks.findIndex(t => t.id === id);
+  if (index === -1) return null;
+
+  const restoredTask = {
+    ...archivedTasks[index],
+    updatedAt: new Date().toISOString(),
+  };
+
+  archivedTasks.splice(index, 1);
+  tasks.push(restoredTask);
+
+  return restoredTask;
+}
+
+/**
+ * Hard delete a task from archive (permanent)
+ */
+export function permanentlyDeleteTask(id: string): boolean {
+  // First check active tasks
+  const activeIndex = tasks.findIndex(t => t.id === id);
+  if (activeIndex !== -1) {
+    tasks.splice(activeIndex, 1);
+    return true;
+  }
+
+  // Then check archived tasks
+  const archivedIndex = archivedTasks.findIndex(t => t.id === id);
+  if (archivedIndex !== -1) {
+    archivedTasks.splice(archivedIndex, 1);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get archived tasks
+ */
+export function getArchivedTasks(): Task[] {
+  return [...archivedTasks];
+}
+
+// ============================================
+// Opportunity CRUD (Phase 2)
+// ============================================
+
+/**
+ * Create a new opportunity
+ */
+export function createOpportunity(data: Omit<Opportunity, 'id' | 'surfacedAt'>): Opportunity {
+  const newOpportunity: Opportunity = {
+    ...data,
+    id: `opp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    surfacedAt: new Date().toISOString(),
+    status: data.status || 'new',
+  };
+
+  opportunities.push(newOpportunity);
+  return newOpportunity;
+}
+
+/**
+ * Archive an opportunity (soft delete)
+ */
+export function archiveOpportunity(id: string, reason?: string): boolean {
+  const index = opportunities.findIndex(o => o.id === id);
+  if (index === -1) return false;
+
+  const archivedOpp = {
+    ...opportunities[index],
+    status: 'dismissed' as Opportunity['status'],
+    dismissReason: reason || 'other',
+  };
+
+  archivedOpportunities.push(archivedOpp);
+  opportunities.splice(index, 1);
+
+  return true;
+}
+
+/**
+ * Restore an archived opportunity
+ */
+export function restoreOpportunity(id: string): Opportunity | null {
+  const index = archivedOpportunities.findIndex(o => o.id === id);
+  if (index === -1) return null;
+
+  const restoredOpp = {
+    ...archivedOpportunities[index],
+    status: 'new' as Opportunity['status'],
+    dismissReason: undefined,
+  };
+
+  archivedOpportunities.splice(index, 1);
+  opportunities.push(restoredOpp);
+
+  return restoredOpp;
+}
+
+/**
+ * Get archived opportunities
+ */
+export function getArchivedOpportunities(): Opportunity[] {
+  return [...archivedOpportunities];
+}
+
+// ============================================
+// Workflow Operations (Phase 2)
+// ============================================
+
+/**
+ * Start a new workflow for a client
+ */
+export function startWorkflow(type: WorkflowType, clientId: string): Workflow {
+  const client = getClientById(clientId);
+
+  // Define default steps based on workflow type
+  const defaultSteps: Record<WorkflowType, WorkflowStep[]> = {
+    client_onboarding: [
+      { id: 'step-1', name: 'Initial consultation', description: 'Meet with client to understand their goals', status: 'pending', order: 1, estimatedMinutes: 60 },
+      { id: 'step-2', name: 'Risk assessment', description: 'Complete risk tolerance questionnaire', status: 'pending', order: 2, estimatedMinutes: 30 },
+      { id: 'step-3', name: 'KYC documentation', description: 'Collect and verify identification documents', status: 'pending', order: 3, estimatedMinutes: 20 },
+      { id: 'step-4', name: 'Account opening', description: 'Open investment accounts', status: 'pending', order: 4, estimatedMinutes: 30 },
+      { id: 'step-5', name: 'Initial investment', description: 'Execute first investment transactions', status: 'pending', order: 5, estimatedMinutes: 45 },
+    ],
+    annual_review: [
+      { id: 'step-1', name: 'Portfolio analysis', description: 'Analyze current portfolio performance', status: 'pending', order: 1, estimatedMinutes: 45 },
+      { id: 'step-2', name: 'Life changes review', description: 'Discuss any life changes affecting goals', status: 'pending', order: 2, estimatedMinutes: 30 },
+      { id: 'step-3', name: 'Strategy adjustment', description: 'Adjust investment strategy if needed', status: 'pending', order: 3, estimatedMinutes: 45 },
+      { id: 'step-4', name: 'Documentation', description: 'Update client documentation', status: 'pending', order: 4, estimatedMinutes: 20, isAutomated: true },
+    ],
+    portfolio_rebalance: [
+      { id: 'step-1', name: 'Current allocation review', description: 'Review current asset allocation', status: 'pending', order: 1, estimatedMinutes: 20 },
+      { id: 'step-2', name: 'Target allocation calculation', description: 'Calculate target allocation based on strategy', status: 'pending', order: 2, estimatedMinutes: 15, isAutomated: true },
+      { id: 'step-3', name: 'Trade execution', description: 'Execute rebalancing trades', status: 'pending', order: 3, estimatedMinutes: 30 },
+      { id: 'step-4', name: 'Confirmation', description: 'Confirm trades and notify client', status: 'pending', order: 4, estimatedMinutes: 15 },
+    ],
+    insurance_renewal: [
+      { id: 'step-1', name: 'Policy review', description: 'Review current policy terms and coverage', status: 'pending', order: 1, estimatedMinutes: 30 },
+      { id: 'step-2', name: 'Needs assessment', description: 'Assess current insurance needs', status: 'pending', order: 2, estimatedMinutes: 45 },
+      { id: 'step-3', name: 'Quote comparison', description: 'Compare renewal options', status: 'pending', order: 3, estimatedMinutes: 30 },
+      { id: 'step-4', name: 'Client decision', description: 'Present options and get client decision', status: 'pending', order: 4, estimatedMinutes: 30 },
+      { id: 'step-5', name: 'Renewal execution', description: 'Process renewal or new policy', status: 'pending', order: 5, estimatedMinutes: 20 },
+    ],
+    estate_planning: [
+      { id: 'step-1', name: 'Current estate review', description: 'Review current estate documents and plans', status: 'pending', order: 1, estimatedMinutes: 60 },
+      { id: 'step-2', name: 'Goals discussion', description: 'Discuss estate planning goals with client', status: 'pending', order: 2, estimatedMinutes: 45 },
+      { id: 'step-3', name: 'Strategy development', description: 'Develop estate planning strategy', status: 'pending', order: 3, estimatedMinutes: 90 },
+      { id: 'step-4', name: 'Legal coordination', description: 'Coordinate with estate lawyer', status: 'pending', order: 4, estimatedMinutes: 60 },
+      { id: 'step-5', name: 'Implementation', description: 'Implement estate planning changes', status: 'pending', order: 5, estimatedMinutes: 120 },
+    ],
+    tax_planning: [
+      { id: 'step-1', name: 'Tax situation review', description: 'Review current tax situation', status: 'pending', order: 1, estimatedMinutes: 45 },
+      { id: 'step-2', name: 'Optimization opportunities', description: 'Identify tax optimization opportunities', status: 'pending', order: 2, estimatedMinutes: 60 },
+      { id: 'step-3', name: 'Strategy implementation', description: 'Implement tax strategies', status: 'pending', order: 3, estimatedMinutes: 45 },
+      { id: 'step-4', name: 'Documentation', description: 'Document tax planning activities', status: 'pending', order: 4, estimatedMinutes: 30, isAutomated: true },
+    ],
+  };
+
+  const workflowSteps = defaultSteps[type].map((step, index) => ({
+    ...step,
+    id: `step-${Date.now()}-${index}`,
+  }));
+
+  const newWorkflow: Workflow = {
+    id: `wf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    type,
+    name: getWorkflowTypeName(type),
+    description: `${getWorkflowTypeName(type)} for ${client?.name || 'Client'}`,
+    clientId,
+    clientName: client?.name,
+    status: 'active',
+    steps: workflowSteps,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    relatedTaskIds: [],
+  };
+
+  workflows.push(newWorkflow);
+  return newWorkflow;
+}
+
+/**
+ * Helper function to get human-readable workflow type name
+ */
+function getWorkflowTypeName(type: WorkflowType): string {
+  const names: Record<WorkflowType, string> = {
+    client_onboarding: 'Client Onboarding',
+    annual_review: 'Annual Review',
+    portfolio_rebalance: 'Portfolio Rebalance',
+    insurance_renewal: 'Insurance Renewal',
+    estate_planning: 'Estate Planning',
+    tax_planning: 'Tax Planning',
+  };
+  return names[type] || type;
+}
+
+/**
+ * Pause a workflow
+ */
+export function pauseWorkflow(id: string): boolean {
+  const index = workflows.findIndex(wf => wf.id === id);
+  if (index === -1) return false;
+
+  if (workflows[index].status !== 'active') {
+    return false; // Can only pause active workflows
+  }
+
+  workflows[index] = {
+    ...workflows[index],
+    status: 'paused',
+    updatedAt: new Date().toISOString(),
+  };
+
+  return true;
+}
+
+/**
+ * Resume a paused workflow
+ */
+export function resumeWorkflow(id: string): boolean {
+  const index = workflows.findIndex(wf => wf.id === id);
+  if (index === -1) return false;
+
+  if (workflows[index].status !== 'paused') {
+    return false; // Can only resume paused workflows
+  }
+
+  workflows[index] = {
+    ...workflows[index],
+    status: 'active',
+    updatedAt: new Date().toISOString(),
+  };
+
+  return true;
+}
+
+/**
+ * Cancel a workflow
+ */
+export function cancelWorkflow(id: string): boolean {
+  const index = workflows.findIndex(wf => wf.id === id);
+  if (index === -1) return false;
+
+  if (workflows[index].status === 'completed' || workflows[index].status === 'cancelled') {
+    return false; // Cannot cancel completed or already cancelled workflows
+  }
+
+  workflows[index] = {
+    ...workflows[index],
+    status: 'cancelled',
+    updatedAt: new Date().toISOString(),
+  };
+
+  return true;
+}
+
+/**
+ * Complete a workflow step
+ */
+export function completeWorkflowStep(workflowId: string, stepId: string, actualMinutes?: number): boolean {
+  const wfIndex = workflows.findIndex(wf => wf.id === workflowId);
+  if (wfIndex === -1) return false;
+
+  const workflow = workflows[wfIndex];
+  const stepIndex = workflow.steps.findIndex(s => s.id === stepId);
+  if (stepIndex === -1) return false;
+
+  // Update the step
+  workflow.steps[stepIndex] = {
+    ...workflow.steps[stepIndex],
+    status: 'completed',
+    completedAt: new Date().toISOString(),
+    actualMinutes: actualMinutes ?? workflow.steps[stepIndex].estimatedMinutes,
+  };
+
+  // Check if all steps are completed
+  const allCompleted = workflow.steps.every(s => s.status === 'completed' || s.status === 'skipped');
+
+  workflows[wfIndex] = {
+    ...workflow,
+    status: allCompleted ? 'completed' : workflow.status,
+    completedAt: allCompleted ? new Date().toISOString() : undefined,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return true;
+}
+
+/**
+ * Skip a workflow step
+ */
+export function skipWorkflowStep(workflowId: string, stepId: string): boolean {
+  const wfIndex = workflows.findIndex(wf => wf.id === workflowId);
+  if (wfIndex === -1) return false;
+
+  const workflow = workflows[wfIndex];
+  const stepIndex = workflow.steps.findIndex(s => s.id === stepId);
+  if (stepIndex === -1) return false;
+
+  workflow.steps[stepIndex] = {
+    ...workflow.steps[stepIndex],
+    status: 'skipped',
+    completedAt: new Date().toISOString(),
+  };
+
+  // Check if all steps are completed
+  const allCompleted = workflow.steps.every(s => s.status === 'completed' || s.status === 'skipped');
+
+  workflows[wfIndex] = {
+    ...workflow,
+    status: allCompleted ? 'completed' : workflow.status,
+    completedAt: allCompleted ? new Date().toISOString() : undefined,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return true;
+}
+
+/**
+ * Start a workflow step (set to in_progress)
+ */
+export function startWorkflowStep(workflowId: string, stepId: string): boolean {
+  const wfIndex = workflows.findIndex(wf => wf.id === workflowId);
+  if (wfIndex === -1) return false;
+
+  const workflow = workflows[wfIndex];
+  const stepIndex = workflow.steps.findIndex(s => s.id === stepId);
+  if (stepIndex === -1) return false;
+
+  workflow.steps[stepIndex] = {
+    ...workflow.steps[stepIndex],
+    status: 'in_progress',
+  };
+
+  workflows[wfIndex] = {
+    ...workflow,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return true;
+}
+
+/**
+ * Update a workflow
+ */
+export function updateWorkflow(id: string, updates: Partial<Workflow>): Workflow | null {
+  const index = workflows.findIndex(wf => wf.id === id);
+  if (index === -1) return null;
+
+  workflows[index] = {
+    ...workflows[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return workflows[index];
+}
+
+// ============================================
+// Activity Log Helpers (Phase 2)
+// ============================================
+
+/**
+ * Add a new activity entry
+ */
+export function addActivityEntry(entry: Omit<ActivityEntry, 'id' | 'timestamp'>): ActivityEntry {
+  const newEntry: ActivityEntry = {
+    ...entry,
+    id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    timestamp: new Date().toISOString(),
+  };
+
+  activityEntries.unshift(newEntry); // Add to beginning for chronological order
+
+  // Keep activity log manageable (limit to 1000 entries)
+  if (activityEntries.length > 1000) {
+    activityEntries.pop();
+  }
+
+  return newEntry;
+}
+
+// ============================================
+// Timeline Helpers (Phase 2)
+// ============================================
+
+/**
+ * Add a timeline event for a client
+ */
+export function addTimelineEvent(event: Omit<TimelineEvent, 'id'>): TimelineEvent {
+  const newEvent: TimelineEvent = {
+    ...event,
+    id: `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  };
+
+  timeline.push(newEvent);
+  return newEvent;
+}
+
+/**
+ * Get all timeline events (not filtered by client)
+ */
+export function getAllTimeline(limit?: number): TimelineEvent[] {
+  const sorted = [...timeline].sort((a, b) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  return limit ? sorted.slice(0, limit) : sorted;
 }

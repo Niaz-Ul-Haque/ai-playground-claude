@@ -1,6 +1,7 @@
 import type { Message, Card } from './chat';
 import type { Task } from './task';
 import type { Client } from './client';
+import type { ChatSessionSummary, StreamingStatus } from './chat-session';
 
 export interface ChatState {
   messages: Message[];
@@ -13,6 +14,12 @@ export interface ChatState {
     focusedClientId?: string;
     lastIntent?: string;
   };
+  // Session state (Phase 4)
+  currentSessionId: string | null;
+  sessions: ChatSessionSummary[];
+  streamingStatus: StreamingStatus;
+  streamingText: string;
+  isSidebarOpen: boolean;
 }
 
 export interface ChatContext extends ChatState {
@@ -23,6 +30,14 @@ export interface ChatContext extends ChatState {
   handleViewClient: (clientId: string) => void;
   handleUndo: () => void;
   handleResetChat: () => void;
+  // Session actions (Phase 4)
+  createNewSession: () => void;
+  selectSession: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => void;
+  pinSession: (sessionId: string) => void;
+  renameSession: (sessionId: string, title: string) => void;
+  searchSessions: (query: string) => void;
+  toggleSidebar: () => void;
 }
 
 export type ChatAction =
@@ -35,4 +50,14 @@ export type ChatAction =
   | { type: 'SET_CONTEXT'; payload: Partial<ChatState['currentContext']> }
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'SET_CLIENTS'; payload: Client[] }
-  | { type: 'RESET_CHAT' };
+  | { type: 'RESET_CHAT' }
+  // Session actions (Phase 4)
+  | { type: 'SET_MESSAGES'; payload: Message[] }
+  | { type: 'SET_CURRENT_SESSION'; payload: string | null }
+  | { type: 'SET_SESSIONS'; payload: ChatSessionSummary[] }
+  | { type: 'SET_STREAMING_STATUS'; payload: StreamingStatus }
+  | { type: 'SET_STREAMING_TEXT'; payload: string }
+  | { type: 'APPEND_STREAMING_TEXT'; payload: string }
+  | { type: 'CLEAR_STREAMING' }
+  | { type: 'TOGGLE_SIDEBAR' }
+  | { type: 'SET_SIDEBAR_OPEN'; payload: boolean };

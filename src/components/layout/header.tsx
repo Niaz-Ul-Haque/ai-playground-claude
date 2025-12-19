@@ -29,7 +29,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
   const userName = session?.user?.name || 'Guest';
   const userInitials = isGuest
     ? 'G'
-    : userName
+    : (userName || 'Guest')
         .split(' ')
         .map((n) => n[0])
         .join('')

@@ -36,7 +36,8 @@ export function middleware(request: NextRequest) {
     }
 
     try {
-      const session = JSON.parse(sessionCookie.value);
+      // Decode the URL-encoded cookie value before parsing
+      const session = JSON.parse(decodeURIComponent(sessionCookie.value));
       
       // Check if session exists and is not a guest
       if (!session || session.type === 'guest') {
