@@ -2,17 +2,38 @@
 export type {
   TaskStatus,
   AIActionType,
+  TaskPriority,
+  AICompletionData,
   Task,
   TaskSummary,
+  TaskUpdate,
   TaskFilters
 } from './task';
 
 // Client types
 export type {
+  ClientStatus,
+  ClientSegment,
   RiskProfile,
   Client,
-  ClientSummary
+  ClientSummary,
+  ClientFilters
 } from './client';
+export { getClientFullName } from './client';
+
+// Policy types
+export type {
+  PolicyStatus,
+  PremiumFrequency,
+  PaymentStatus,
+  FundAllocation,
+  Claim,
+  Beneficiary,
+  PolicyDocument,
+  Policy,
+  PolicySummary,
+  PolicyFilters
+} from './policy';
 
 // Chat types
 export type {
@@ -23,21 +44,20 @@ export type {
   TaskListCardData,
   TaskCardData,
   ClientCardData,
+  ClientListCardData,
+  PolicyCardData,
+  PolicyListCardData,
   ReviewCardData,
   ConfirmationCardData,
-  ContentSegment
+  ContentSegment,
+  ChatRequest,
+  ChatContext,
+  ChatResponse
 } from './chat';
-
-// Intent types
-export type {
-  UserIntent,
-  ExtractedEntities,
-  IntentClassification
-} from './intent';
 
 // State types
 export type {
   ChatState,
-  ChatContext,
+  ChatContextValue,
   ChatAction
 } from './state';

@@ -1,9 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import type { ChatState, ChatAction, ChatContext as ChatContextType } from '@/types/state';
-import type { Message } from '@/types/chat';
-import { getTasks, updateTask, getClients } from '@/lib/mock-data';
+import type { ChatState, ChatAction, ChatContextValue } from '@/types/state';
+import type { Message, ChatContext as ApiChatContext } from '@/types/chat';
+import { sendChatMessage } from '@/services/chat-service';
+import { listClients } from '@/services/clients-service';
+import { listTasks, approveTask, rejectTask, completeTask } from '@/services/tasks-service';
 
 const initialState: ChatState = {
   messages: [],
@@ -55,18 +57,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         isLoading: false,
       };
 
-    case 'UPDATE_TASK':
-      const updatedTask = updateTask(action.payload.id, action.payload.updates);
-      if (updatedTask) {
-        return {
-          ...state,
-          tasks: state.tasks.map(task =>
-            task.id === action.payload.id ? updatedTask : task
-          ),
-        };
-      }
-      return state;
-
     case 'SET_CONTEXT':
       return {
         ...state,
@@ -101,17 +91,45 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
   }
 }
 
-const ChatContext = createContext<ChatContextType | undefined>(undefined);
+const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
 
-  // Load initial data
+  // Load initial data from API
   useEffect(() => {
-    const tasks = getTasks();
-    const clients = getClients();
-    dispatch({ type: 'SET_TASKS', payload: tasks });
-    dispatch({ type: 'SET_CLIENTS', payload: clients });
+    const loadInitialData = async () => {
+      try {
+        const [tasksData, clientsData] = await Promise.all([
+          listTasks(),
+          listClients(),
+        ]);
+        // Convert TaskSummary[] to Task[] (they share compatible fields)
+        dispatch({ type: 'SET_TASKS', payload: tasksData as any });
+        dispatch({ type: 'SET_CLIENTS', payload: clientsData as any });
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+      }
+    };
+    loadInitialData();
+  }, []);
+
+  const refreshTasks = useCallback(async () => {
+    try {
+      const tasksData = await listTasks();
+      dispatch({ type: 'SET_TASKS', payload: tasksData as any });
+    } catch (error) {
+      console.error('Failed to refresh tasks:', error);
+    }
+  }, []);
+
+  const refreshClients = useCallback(async () => {
+    try {
+      const clientsData = await listClients();
+      dispatch({ type: 'SET_CLIENTS', payload: clientsData as any });
+    } catch (error) {
+      console.error('Failed to refresh clients:', error);
+    }
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -127,42 +145,43 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: content,
-          context: state.currentContext,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: data.content,
-        timestamp: new Date().toISOString(),
-        cards: data.cards,
+      // Build context for API
+      const apiContext: ApiChatContext = {
+        current_client_id: state.currentContext.focused_client_id,
+        current_policy_id: state.currentContext.focused_policy_id,
+        current_task_id: state.currentContext.focused_task_id,
+        current_view: state.currentContext.current_view,
       };
 
-      dispatch({ type: 'ADD_MESSAGE', payload: assistantMessage });
+      const response = await sendChatMessage(content, state.messages, apiContext);
 
-      // Update context if provided
-      if (data.context) {
-        dispatch({ type: 'SET_CONTEXT', payload: data.context });
-      }
+      if (response) {
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.message,
+          timestamp: new Date().toISOString(),
+          cards: response.cards,
+        };
 
-      // Refresh tasks if they were updated
-      if (data.tasksUpdated) {
-        const tasks = getTasks();
-        dispatch({ type: 'SET_TASKS', payload: tasks });
+        dispatch({ type: 'ADD_MESSAGE', payload: assistantMessage });
+
+        // Update context if provided
+        if (response.context) {
+          dispatch({
+            type: 'SET_CONTEXT',
+            payload: {
+              focused_client_id: response.context.client_id,
+              focused_policy_id: response.context.policy_id,
+              focused_task_id: response.context.task_id,
+            },
+          });
+        }
+
+        // Refresh tasks in case they were updated
+        await refreshTasks();
+      } else {
+        throw new Error('No response from server');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -171,7 +190,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         payload: error instanceof Error ? error.message : 'An error occurred',
       });
 
-      // Add error message
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
@@ -182,26 +200,31 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.currentContext]);
+  }, [state.currentContext, state.messages, refreshTasks]);
 
   const handleApproveTask = useCallback(async (taskId: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      // Update task status to completed
-      dispatch({
-        type: 'UPDATE_TASK',
-        payload: {
-          id: taskId,
-          updates: {
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-          },
-        },
-      });
-
-      // Send confirmation message
-      await sendMessage(`Approve task ${taskId}`);
+      const success = await approveTask(taskId);
+      if (success) {
+        await refreshTasks();
+        
+        const confirmMessage: Message = {
+          id: `confirm-${Date.now()}`,
+          role: 'assistant',
+          content: 'Task approved successfully!',
+          timestamp: new Date().toISOString(),
+          cards: [{
+            type: 'confirmation',
+            data: {
+              type: 'success',
+              message: 'Task has been approved and marked as complete.',
+            },
+          }],
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
+      }
     } catch (error) {
       console.error('Error approving task:', error);
       dispatch({
@@ -211,27 +234,31 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [sendMessage]);
+  }, [refreshTasks]);
 
-  const handleRejectTask = useCallback(async (taskId: string) => {
+  const handleRejectTask = useCallback(async (taskId: string, reason?: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      // Update task status back to pending
-      dispatch({
-        type: 'UPDATE_TASK',
-        payload: {
-          id: taskId,
-          updates: {
-            status: 'pending',
-            aiCompleted: false,
-            aiCompletionData: undefined,
-          },
-        },
-      });
-
-      // Send confirmation message
-      await sendMessage(`Reject task ${taskId}`);
+      const success = await rejectTask(taskId, reason);
+      if (success) {
+        await refreshTasks();
+        
+        const confirmMessage: Message = {
+          id: `confirm-${Date.now()}`,
+          role: 'assistant',
+          content: 'Task rejected and returned to pending.',
+          timestamp: new Date().toISOString(),
+          cards: [{
+            type: 'confirmation',
+            data: {
+              type: 'info',
+              message: 'Task has been rejected and returned to pending status.',
+            },
+          }],
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
+      }
     } catch (error) {
       console.error('Error rejecting task:', error);
       dispatch({
@@ -241,33 +268,35 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [sendMessage]);
+  }, [refreshTasks]);
 
   const handleCompleteTask = useCallback(async (taskId: string) => {
-    dispatch({
-      type: 'UPDATE_TASK',
-      payload: {
-        id: taskId,
-        updates: {
-          status: 'completed',
-          completedAt: new Date().toISOString(),
-        },
-      },
-    });
+    dispatch({ type: 'SET_LOADING', payload: true });
 
-    const tasks = getTasks();
-    dispatch({ type: 'SET_TASKS', payload: tasks });
-  }, []);
+    try {
+      const success = await completeTask(taskId);
+      if (success) {
+        await refreshTasks();
+      }
+    } catch (error) {
+      console.error('Error completing task:', error);
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Failed to complete task',
+      });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [refreshTasks]);
 
   const handleViewClient = useCallback((clientId: string) => {
     dispatch({
       type: 'SET_CONTEXT',
-      payload: { focusedClientId: clientId },
+      payload: { focused_client_id: clientId },
     });
   }, []);
 
   const handleUndo = useCallback(() => {
-    // TODO: Implement undo functionality
     console.log('Undo not yet implemented');
   }, []);
 
@@ -275,7 +304,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'RESET_CHAT' });
   }, []);
 
-  const contextValue: ChatContextType = {
+  const contextValue: ChatContextValue = {
     ...state,
     sendMessage,
     handleApproveTask,
@@ -284,6 +313,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     handleViewClient,
     handleUndo,
     handleResetChat,
+    refreshTasks,
+    refreshClients,
   };
 
   return (
@@ -293,7 +324,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useChatContext(): ChatContextType {
+export function useChatContext(): ChatContextValue {
   const context = useContext(ChatContext);
   if (!context) {
     throw new Error('useChatContext must be used within a ChatProvider');

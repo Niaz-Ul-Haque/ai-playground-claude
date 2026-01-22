@@ -14,7 +14,7 @@ interface TaskListCardProps {
 
 export function TaskListCard({ data }: TaskListCardProps) {
   const { handleApproveTask, handleRejectTask } = useChatContext();
-  const { title, tasks, showActions = false } = data;
+  const { title, tasks, show_actions = false } = data;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -29,9 +29,10 @@ export function TaskListCard({ data }: TaskListCardProps) {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: string | undefined) => {
     switch (priority) {
       case 'high':
+      case 'urgent':
         return 'bg-red-100 text-red-800 border-red-200';
       case 'medium':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -45,14 +46,17 @@ export function TaskListCard({ data }: TaskListCardProps) {
   return (
     <Card className="my-4">
       <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardTitle className="text-lg">{title || 'Tasks'}</CardTitle>
+        {data.description && (
+          <p className="text-sm text-muted-foreground">{data.description}</p>
+        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           {tasks.map((task) => {
             return (
               <div
-                key={task.id}
+                key={task.task_id}
                 className="flex items-start justify-between gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -60,36 +64,38 @@ export function TaskListCard({ data }: TaskListCardProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <p className="font-medium text-sm">{task.title}</p>
-                      {task.aiCompleted && (
+                      {task.ai_completed && (
                         <Badge variant="secondary" className="text-xs">
                           AI Completed
                         </Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                      <span>{formatDueDate(task.dueDate)}</span>
-                      {task.clientName && (
+                      {task.due_date && <span>{formatDueDate(task.due_date)}</span>}
+                      {task.client_name && (
                         <>
-                          <span>•</span>
-                          <span>{task.clientName}</span>
+                          <span></span>
+                          <span>{task.client_name}</span>
                         </>
                       )}
-                      <Badge
-                        variant="outline"
-                        className={`${getPriorityColor(task.priority)}`}
-                      >
-                        {task.priority}
-                      </Badge>
+                      {task.priority && (
+                        <Badge
+                          variant="outline"
+                          className={`${getPriorityColor(task.priority)}`}
+                        >
+                          {task.priority}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {showActions && task.status === 'needs-review' && (
+                {show_actions && task.status === 'needs-review' && (
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleApproveTask(task.id)}
+                      onClick={() => handleApproveTask(task.task_id)}
                       className="h-8 text-xs"
                     >
                       <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -98,7 +104,7 @@ export function TaskListCard({ data }: TaskListCardProps) {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleRejectTask(task.id)}
+                      onClick={() => handleRejectTask(task.task_id)}
                       className="h-8 text-xs"
                     >
                       <XCircle className="h-3 w-3 mr-1" />

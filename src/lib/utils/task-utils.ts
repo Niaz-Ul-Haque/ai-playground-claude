@@ -50,7 +50,8 @@ export function getTasksForToday(tasks: Task[]): Task[] {
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
   return tasks.filter(task => {
-    const dueDate = new Date(task.dueDate);
+    if (!task.due_date) return false;
+    const dueDate = new Date(task.due_date);
     return dueDate >= startOfDay && dueDate < endOfDay && task.status !== 'completed';
   });
 }
@@ -60,7 +61,7 @@ export function getPendingReviewTasks(tasks: Task[]): Task[] {
 }
 
 export function getTasksForClient(tasks: Task[], clientId: string): Task[] {
-  return tasks.filter(task => task.clientId === clientId);
+  return tasks.filter(task => task.client_id === clientId);
 }
 
 export function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
@@ -74,12 +75,12 @@ export function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
 }
 
 export function isOverdue(task: Task): boolean {
-  if (task.status === 'completed') {
+  if (task.status === 'completed' || !task.due_date) {
     return false;
   }
 
   const now = new Date();
-  const dueDate = new Date(task.dueDate);
+  const dueDate = new Date(task.due_date);
 
   return dueDate < now;
 }

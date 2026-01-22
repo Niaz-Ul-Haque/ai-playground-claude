@@ -5,6 +5,9 @@ import {
   TaskListCard,
   TaskCard,
   ClientCard,
+  ClientListCard,
+  PolicyCard,
+  PolicyListCard,
   ReviewCard,
   ConfirmationCard,
 } from '@/components/cards';
@@ -21,6 +24,12 @@ export function CardRenderer({ card }: CardRendererProps) {
       return <TaskCard data={card.data} />;
     case 'client':
       return <ClientCard data={card.data} />;
+    case 'client-list':
+      return <ClientListCard data={card.data} />;
+    case 'policy':
+      return <PolicyCard data={card.data} />;
+    case 'policy-list':
+      return <PolicyListCard data={card.data} />;
     case 'review':
       return <ReviewCard data={card.data} />;
     case 'confirmation':

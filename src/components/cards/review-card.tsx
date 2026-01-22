@@ -14,7 +14,7 @@ interface ReviewCardProps {
 
 export function ReviewCard({ data }: ReviewCardProps) {
   const { handleApproveTask, handleRejectTask } = useChatContext();
-  const { task, title, message } = data;
+  const { task_id, title, summary, content, action_type, confidence } = data;
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getActionTypeLabel = (type: string) => {
@@ -22,11 +22,19 @@ export function ReviewCard({ data }: ReviewCardProps) {
       email_draft: 'Email Draft',
       portfolio_review: 'Portfolio Review',
       meeting_notes: 'Meeting Notes',
+      policy_summary: 'Policy Summary',
+      client_summary: 'Client Summary',
+      compliance_check: 'Compliance Check',
       report: 'Report',
       reminder: 'Reminder',
       analysis: 'Analysis',
     };
     return labels[type] || type;
+  };
+
+  const handleReject = () => {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    handleRejectTask(task_id, reason || undefined);
   };
 
   return (
@@ -38,7 +46,7 @@ export function ReviewCard({ data }: ReviewCardProps) {
               <Sparkles className="h-5 w-5 text-yellow-600" />
               <CardTitle className="text-lg">{title}</CardTitle>
             </div>
-            <p className="text-sm text-muted-foreground">{message}</p>
+            <p className="text-sm text-muted-foreground">{summary}</p>
           </div>
           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
             Needs Review
@@ -49,68 +57,61 @@ export function ReviewCard({ data }: ReviewCardProps) {
         <div className="p-3 bg-white rounded-lg border">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <p className="font-medium text-sm">{task.title}</p>
-              {task.aiActionType && (
+              {action_type && (
                 <Badge variant="secondary" className="text-xs">
-                  {getActionTypeLabel(task.aiActionType)}
+                  {getActionTypeLabel(action_type)}
                 </Badge>
               )}
             </div>
-            {task.aiCompletionData && (
+            {confidence && (
               <Badge variant="outline" className="text-xs">
-                {task.aiCompletionData.confidence}% confident
+                {confidence}% confident
               </Badge>
             )}
           </div>
 
-          {task.aiCompletionData && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {task.aiCompletionData.summary}
-              </p>
-
-              {task.aiCompletionData.details && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="h-8 text-xs p-0 hover:bg-transparent"
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronUp className="h-3 w-3 mr-1" />
-                        Hide details
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="h-3 w-3 mr-1" />
-                        Show details
-                      </>
-                    )}
-                  </Button>
-
-                  {isExpanded && (
-                    <div className="p-3 bg-gray-50 rounded border text-sm whitespace-pre-wrap">
-                      {task.aiCompletionData.details}
-                    </div>
+          <div className="space-y-2">
+            {content && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="h-8 text-xs p-0 hover:bg-transparent"
+                >
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      Hide content
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      Show content
+                    </>
                   )}
-                </>
-              )}
-            </div>
-          )}
+                </Button>
+
+                {isExpanded && (
+                  <div className="p-3 bg-gray-50 rounded border text-sm whitespace-pre-wrap">
+                    {content}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2 pt-2">
           <Button
-            onClick={() => handleApproveTask(task.id)}
+            onClick={() => handleApproveTask(task_id)}
             className="flex-1 bg-green-600 hover:bg-green-700"
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Approve & Send
           </Button>
           <Button
-            onClick={() => handleRejectTask(task.id)}
+            onClick={handleReject}
             variant="outline"
             className="flex-1"
           >
