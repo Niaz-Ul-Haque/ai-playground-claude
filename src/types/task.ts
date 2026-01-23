@@ -13,7 +13,10 @@ export type AIActionType =
   | 'compliance_check'
   | 'report'
   | 'reminder'
-  | 'analysis';
+  | 'analysis'
+  | 'proposal'
+  | 'birthday_greeting'
+  | 'renewal_notice';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 

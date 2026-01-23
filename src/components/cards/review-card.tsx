@@ -32,6 +32,9 @@ export function ReviewCard({ data }: ReviewCardProps) {
       report: 'Report',
       reminder: 'Reminder',
       analysis: 'Analysis',
+      proposal: 'Proposal',
+      birthday_greeting: 'Birthday Greeting',
+      renewal_notice: 'Renewal Notice',
     };
     return labels[type] || type;
   };
