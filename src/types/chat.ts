@@ -71,13 +71,20 @@ export interface PolicyListCardData {
 }
 
 export interface ReviewCardData {
-  task_id: string;
+  task_id?: string;
   title: string;
-  action_type: AIActionType;
-  content: string;
-  summary: string;
+  action_type?: AIActionType;
+  content?: string;
+  message?: string;
+  summary?: string;
   confidence?: number;
-  task?: Task;
+  task?: {
+    task_id: string;
+    title: string;
+    status: string;
+    ai_completed: boolean;
+  };
+  generated_content?: string;
 }
 
 export interface ConfirmationCardData {
@@ -112,14 +119,19 @@ export interface ChatContext {
 export interface ChatResponse {
   success: boolean;
   data?: {
-    message: string;
+    content: string;
     cards?: Card[];
     intent?: string;
     context?: {
       client_id?: string;
       policy_id?: string;
       task_id?: string;
+      last_intent?: string;
+      focused_task_id?: string;
+      focused_client_id?: string;
+      focused_policy_id?: string;
     };
+    tasks_updated?: boolean;
   };
   error?: string;
   message?: string;

@@ -14,7 +14,7 @@ interface MessageItemProps {
 
 export function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === 'user';
-  const segments = parseMessageContent(message.content);
+  const segments = message.content ? parseMessageContent(message.content) : [];
 
   return (
     <div

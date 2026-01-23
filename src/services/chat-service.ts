@@ -40,7 +40,7 @@ export async function sendChatMessage(
   }
 
   return {
-    message: response.data.message,
+    message: response.data.content,
     cards: response.data.cards || [],
     context: response.data.context,
   };

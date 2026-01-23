@@ -57,6 +57,11 @@ function extractJson(content: string, startIndex: number): { json: string; endIn
  * Parse message content and extract card markers with nested JSON support.
  */
 export function parseMessageContent(content: string): ContentSegment[] {
+  // Guard against undefined/null content
+  if (!content) {
+    return [];
+  }
+
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
   let searchIndex = 0;

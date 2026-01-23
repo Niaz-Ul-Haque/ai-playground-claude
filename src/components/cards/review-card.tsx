@@ -14,8 +14,12 @@ interface ReviewCardProps {
 
 export function ReviewCard({ data }: ReviewCardProps) {
   const { handleApproveTask, handleRejectTask } = useChatContext();
-  const { task_id, title, summary, content, action_type, confidence } = data;
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { title, summary, action_type, confidence, task } = data;
+  // Support both 'message' and 'content' fields (backend sends 'message')
+  const displayContent = data.message || data.content || data.generated_content;
+  // Get task_id from task object or directly from data
+  const taskId = data.task_id || task?.task_id;
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const getActionTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -33,8 +37,9 @@ export function ReviewCard({ data }: ReviewCardProps) {
   };
 
   const handleReject = () => {
+    if (!taskId) return;
     const reason = prompt('Please provide a reason for rejection (optional):');
-    handleRejectTask(task_id, reason || undefined);
+    handleRejectTask(taskId, reason || undefined);
   };
 
   return (
@@ -71,7 +76,7 @@ export function ReviewCard({ data }: ReviewCardProps) {
           </div>
 
           <div className="space-y-2">
-            {content && (
+            {displayContent && (
               <>
                 <Button
                   variant="ghost"
@@ -94,7 +99,7 @@ export function ReviewCard({ data }: ReviewCardProps) {
 
                 {isExpanded && (
                   <div className="p-3 bg-gray-50 rounded border text-sm whitespace-pre-wrap">
-                    {content}
+                    {displayContent}
                   </div>
                 )}
               </>
@@ -102,23 +107,25 @@ export function ReviewCard({ data }: ReviewCardProps) {
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2">
-          <Button
-            onClick={() => handleApproveTask(task_id)}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Approve & Send
-          </Button>
-          <Button
-            onClick={handleReject}
-            variant="outline"
-            className="flex-1"
-          >
-            <XCircle className="h-4 w-4 mr-2" />
-            Reject
-          </Button>
-        </div>
+        {taskId && (
+          <div className="flex gap-2 pt-2">
+            <Button
+              onClick={() => handleApproveTask(taskId)}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Approve & Send
+            </Button>
+            <Button
+              onClick={handleReject}
+              variant="outline"
+              className="flex-1"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Reject
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
