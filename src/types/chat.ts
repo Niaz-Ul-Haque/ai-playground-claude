@@ -16,7 +16,31 @@ export type CardType =
   | 'policy'
   | 'policy-list'
   | 'review'
-  | 'confirmation';
+  | 'confirmation'
+  // Phase 1: Actionable content cards
+  | 'email-composer'
+  | 'data-table'
+  | 'chart'
+  | 'compliance-check'
+  // Phase 2: Business intelligence cards
+  | 'proposal'
+  | 'comparison'
+  | 'dashboard'
+  | 'portfolio-review'
+  // Phase 3: Workflow cards
+  | 'calendar'
+  | 'meeting-notes'
+  | 'reminder'
+  | 'progress-tracker'
+  | 'renewal-notice'
+  | 'document-preview';
+
+export type MessageStatus = 'pending' | 'typing' | 'complete';
+
+export interface MessageMetadata {
+  step?: string;
+  details?: string;
+}
 
 export interface Message {
   id: string;
@@ -24,6 +48,8 @@ export interface Message {
   content: string;
   timestamp: string;
   cards?: Card[];
+  status?: MessageStatus;
+  metadata?: MessageMetadata;
 }
 
 export type Card =
@@ -34,7 +60,24 @@ export type Card =
   | { type: 'policy'; data: PolicyCardData }
   | { type: 'policy-list'; data: PolicyListCardData }
   | { type: 'review'; data: ReviewCardData }
-  | { type: 'confirmation'; data: ConfirmationCardData };
+  | { type: 'confirmation'; data: ConfirmationCardData }
+  // Phase 1: Actionable content cards
+  | { type: 'email-composer'; data: EmailComposerCardData }
+  | { type: 'data-table'; data: DataTableCardData }
+  | { type: 'chart'; data: ChartCardData }
+  | { type: 'compliance-check'; data: ComplianceCheckCardData }
+  // Phase 2: Business intelligence cards
+  | { type: 'proposal'; data: ProposalCardData }
+  | { type: 'comparison'; data: ComparisonCardData }
+  | { type: 'dashboard'; data: DashboardCardData }
+  | { type: 'portfolio-review'; data: PortfolioReviewCardData }
+  // Phase 3: Workflow cards
+  | { type: 'calendar'; data: CalendarCardData }
+  | { type: 'meeting-notes'; data: MeetingNotesCardData }
+  | { type: 'reminder'; data: ReminderCardData }
+  | { type: 'progress-tracker'; data: ProgressTrackerCardData }
+  | { type: 'renewal-notice'; data: RenewalNoticeCardData }
+  | { type: 'document-preview'; data: DocumentPreviewCardData };
 
 export interface TaskListCardData {
   title?: string;
@@ -135,4 +178,306 @@ export interface ChatResponse {
   };
   error?: string;
   message?: string;
+}
+
+// =============================================================================
+// Phase 1: Actionable Content Card Data Interfaces
+// =============================================================================
+
+export interface EmailComposerCardData {
+  email_id?: string;
+  to: string;
+  cc?: string;
+  bcc?: string;
+  subject: string;
+  body: string;
+  attachments?: Array<{
+    name: string;
+    url?: string;
+    size?: number;
+  }>;
+  template_id?: string;
+  template_name?: string;
+  editable?: boolean;
+  related_task_id?: string;
+  related_client_id?: string;
+  available_actions?: ('send' | 'save_draft' | 'copy' | 'discard')[];
+}
+
+export interface DataTableCardData {
+  title?: string;
+  description?: string;
+  columns: Array<{
+    key: string;
+    header: string;
+    sortable?: boolean;
+    width?: string;
+    format?: 'text' | 'number' | 'currency' | 'date' | 'percent' | 'status';
+  }>;
+  rows: Record<string, unknown>[];
+  sortable?: boolean;
+  filterable?: boolean;
+  pageSize?: number;
+  exportable?: boolean;
+  available_actions?: ('export' | 'filter' | 'sort')[];
+}
+
+export interface ChartCardData {
+  title?: string;
+  description?: string;
+  chart_type: 'line' | 'bar' | 'pie' | 'donut' | 'sparkline';
+  data: Array<{
+    name: string;
+    value: number;
+    [key: string]: string | number;
+  }>;
+  x_axis_key?: string;
+  y_axis_key?: string;
+  series?: Array<{
+    key: string;
+    name?: string;
+    color?: string;
+  }>;
+  show_legend?: boolean;
+  show_grid?: boolean;
+  height?: number;
+  time_periods?: string[];
+  selected_period?: string;
+  center_label?: string;
+  center_value?: string | number;
+}
+
+export interface ComplianceCheckCardData {
+  title: string;
+  client_id?: string;
+  client_name?: string;
+  check_date: string;
+  overall_score: number;
+  items: Array<{
+    id: string;
+    label: string;
+    status: 'pass' | 'fail' | 'warning' | 'pending';
+    description?: string;
+    details?: string;
+    remediation?: string;
+  }>;
+  summary?: string;
+  available_actions?: ('resolve' | 'schedule_review' | 'generate_report' | 'escalate')[];
+}
+
+// =============================================================================
+// Phase 2: Business Intelligence Card Data Interfaces
+// =============================================================================
+
+export interface ProposalCardData {
+  proposal_id: string;
+  title: string;
+  client_id?: string;
+  client_name?: string;
+  products: Array<{
+    product_id: string;
+    name: string;
+    type: string;
+    carrier?: string;
+    recommended?: boolean;
+  }>;
+  pricing_table: Array<{
+    coverage: string;
+    monthly_premium: number;
+    annual_premium: number;
+    term?: string;
+    notes?: string;
+  }>;
+  benefits?: string[];
+  terms?: string[];
+  expiry_date?: string;
+  status: 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+  available_actions?: ('select_option' | 'send_to_client' | 'edit' | 'download_pdf')[];
+}
+
+export interface ComparisonCardData {
+  title: string;
+  items: Array<{
+    id: string;
+    name: string;
+    recommended?: boolean;
+  }>;
+  attributes: Array<{
+    key: string;
+    label: string;
+    format?: 'text' | 'boolean' | 'number' | 'currency';
+    values: Record<string, unknown>;
+    winner?: string;
+  }>;
+  recommendation?: string;
+  available_actions?: ('select' | 'request_details')[];
+}
+
+export interface DashboardCardData {
+  title?: string;
+  period: string;
+  metrics: Array<{
+    id: string;
+    label: string;
+    value: number | string;
+    format?: 'number' | 'currency' | 'percent';
+    change?: number;
+    change_period?: string;
+    sparkline?: number[];
+  }>;
+  charts?: ChartCardData[];
+  available_periods?: string[];
+}
+
+export interface PortfolioReviewCardData {
+  client_id: string;
+  client_name: string;
+  total_value: number;
+  total_change: number;
+  total_change_percent: number;
+  period: string;
+  allocation: Array<{
+    category: string;
+    value: number;
+    percent: number;
+    change?: number;
+  }>;
+  holdings?: Array<{
+    name: string;
+    ticker?: string;
+    value: number;
+    shares?: number;
+    change: number;
+    change_percent: number;
+  }>;
+  performance_history?: Array<{
+    date: string;
+    value: number;
+  }>;
+  risk_score?: number;
+  recommendation?: string;
+  available_actions?: ('rebalance' | 'export' | 'compare_benchmark')[];
+}
+
+// =============================================================================
+// Phase 3: Workflow Card Data Interfaces
+// =============================================================================
+
+export interface CalendarCardData {
+  title?: string;
+  view: 'day' | 'week' | 'month';
+  date: string;
+  events: Array<{
+    id: string;
+    title: string;
+    start: string;
+    end?: string;
+    type: 'meeting' | 'task' | 'reminder' | 'deadline';
+    client_id?: string;
+    client_name?: string;
+    location?: string;
+    description?: string;
+  }>;
+  available_actions?: ('add_event' | 'change_view' | 'sync')[];
+}
+
+export interface MeetingNotesCardData {
+  meeting_id?: string;
+  title: string;
+  meeting_date: string;
+  attendees: Array<{
+    name: string;
+    email?: string;
+    role?: string;
+  }>;
+  agenda?: string[];
+  discussion_points?: string[];
+  action_items: Array<{
+    id: string;
+    description: string;
+    owner?: string;
+    due_date?: string;
+    completed?: boolean;
+  }>;
+  notes?: string;
+  follow_up_date?: string;
+  editable?: boolean;
+  available_actions?: ('save' | 'share' | 'add_action_item' | 'schedule_followup')[];
+}
+
+export interface ReminderCardData {
+  reminder_id: string;
+  title: string;
+  description?: string;
+  due_date: string;
+  due_time?: string;
+  recurrence?: {
+    type: 'none' | 'daily' | 'weekly' | 'monthly';
+    interval?: number;
+    end_date?: string;
+  };
+  related_client_id?: string;
+  related_client_name?: string;
+  related_task_id?: string;
+  related_task_title?: string;
+  status: 'pending' | 'snoozed' | 'dismissed' | 'completed';
+  snoozed_until?: string;
+  available_actions?: ('snooze' | 'dismiss' | 'complete' | 'reschedule')[];
+}
+
+export interface ProgressTrackerCardData {
+  process_id: string;
+  title: string;
+  description?: string;
+  client_id?: string;
+  client_name?: string;
+  steps: Array<{
+    id: string;
+    label: string;
+    description?: string;
+    status: 'pending' | 'current' | 'completed';
+    completed_at?: string;
+    notes?: string;
+  }>;
+  current_step: number;
+  start_date: string;
+  estimated_completion?: string;
+  actual_completion?: string;
+  available_actions?: ('advance_step' | 'add_note' | 'escalate')[];
+}
+
+export interface RenewalNoticeCardData {
+  title?: string;
+  policies: Array<{
+    policy_id: string;
+    policy_number: string;
+    type: string;
+    client_name: string;
+    expiry_date: string;
+    days_remaining: number;
+    current_premium: number;
+    projected_premium?: number;
+    premium_change?: number;
+    status: 'due' | 'overdue' | 'renewed' | 'cancelled';
+  }>;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  available_actions?: ('initiate_renewal' | 'contact_client' | 'compare_quotes' | 'set_reminder')[];
+}
+
+export interface DocumentPreviewCardData {
+  title?: string;
+  documents: Array<{
+    id: string;
+    name: string;
+    type: string;
+    url?: string;
+    thumbnail_url?: string;
+    size?: number;
+    uploaded_at?: string;
+    uploaded_by?: string;
+  }>;
+  selected_document_id?: string;
+  client_id?: string;
+  policy_id?: string;
+  available_actions?: ('view' | 'download' | 'share' | 'delete' | 'upload')[];
 }

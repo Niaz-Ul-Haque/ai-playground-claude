@@ -88,3 +88,18 @@ export async function getOverdueTasks(): Promise<TaskSummary[]> {
 export async function getTasksForClient(clientId: string): Promise<TaskSummary[]> {
   return listTasks({ client_id: clientId });
 }
+
+/**
+ * Approve a task with user-edited content
+ */
+export async function approveTaskWithEdits(
+  taskId: string,
+  editedContent: string,
+  originalContent?: string
+): Promise<Task | null> {
+  const response = await apiPost<{ task: Task }>(`/api/tasks/${taskId}/approve-with-edits`, {
+    edited_content: editedContent,
+    original_content: originalContent,
+  });
+  return response.data?.task || null;
+}

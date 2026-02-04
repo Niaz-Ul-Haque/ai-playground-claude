@@ -93,6 +93,7 @@ export interface ClientSummary {
   client_status?: ClientStatus;
   client_segment?: ClientSegment;
   portfolio_value?: number;
+  policy_count?: number;
   risk_profile?: RiskProfile;
   next_meeting?: string;
   account_manager_id?: string;

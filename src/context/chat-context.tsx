@@ -2,10 +2,20 @@
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import type { ChatState, ChatAction, ChatContextValue } from '@/types/state';
-import type { Message, ChatContext as ApiChatContext } from '@/types/chat';
+import type { Message, ChatContext as ApiChatContext, EmailComposerCardData } from '@/types/chat';
 import { sendChatMessage } from '@/services/chat-service';
 import { listClients } from '@/services/clients-service';
 import { listTasks, approveTask, rejectTask, completeTask } from '@/services/tasks-service';
+import {
+  loadConversationContext,
+  saveConversationContext,
+  clearConversationContext,
+  appendContextData,
+  recordAction,
+  setFocusedEntity,
+  getContextForApi,
+  type AccumulatedContext,
+} from '@/lib/chat/storage';
 
 const initialState: ChatState = {
   messages: [],
@@ -29,7 +39,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...state,
         messages: state.messages.map(msg =>
           msg.id === action.payload.id
-            ? { ...msg, content: action.payload.content, cards: action.payload.cards }
+            ? { ...msg, ...action.payload.updates }
             : msg
         ),
       };
@@ -96,6 +106,21 @@ const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
 
+  // Load context from localStorage on mount
+  useEffect(() => {
+    const storedContext = loadConversationContext();
+    if (storedContext.focused_client_id || storedContext.focused_task_id || storedContext.focused_policy_id) {
+      dispatch({
+        type: 'SET_CONTEXT',
+        payload: {
+          focused_client_id: storedContext.focused_client_id,
+          focused_task_id: storedContext.focused_task_id,
+          focused_policy_id: storedContext.focused_policy_id,
+        },
+      });
+    }
+  }, []);
+
   // Load initial data from API
   useEffect(() => {
     const loadInitialData = async () => {
@@ -141,41 +166,87 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
 
     dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+    
+    // Create pending assistant message immediately
+    const pendingMessageId = `assistant-${Date.now()}`;
+    const pendingMessage: Message = {
+      id: pendingMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString(),
+      status: 'pending',
+      metadata: { step: 'Gathering context…' },
+    };
+    dispatch({ type: 'ADD_MESSAGE', payload: pendingMessage });
+    
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      // Build context for API
-      const apiContext: ApiChatContext = {
+      // Get accumulated context from localStorage
+      const accumulatedContext = getContextForApi();
+
+      // Build context for API (merge with accumulated context)
+      const apiContext: ApiChatContext & Record<string, unknown> = {
         current_client_id: state.currentContext.focused_client_id,
         current_policy_id: state.currentContext.focused_policy_id,
         current_task_id: state.currentContext.focused_task_id,
         current_view: state.currentContext.current_view,
+        // Include accumulated context for AI
+        ...accumulatedContext,
       };
 
-      const response = await sendChatMessage(content, state.messages, apiContext);
+      const response = await sendChatMessage(content, state.messages, apiContext as ApiChatContext);
 
       if (response) {
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: response.message,
-          timestamp: new Date().toISOString(),
-          cards: response.cards,
-        };
+        // Transition to 'typing' state
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            id: pendingMessageId,
+            updates: {
+              status: 'typing',
+              content: response.message,
+              cards: response.cards,
+            },
+          },
+        });
 
-        dispatch({ type: 'ADD_MESSAGE', payload: assistantMessage });
+        // After a brief delay, transition to 'complete' (remove status line)
+        setTimeout(() => {
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            payload: {
+              id: pendingMessageId,
+              updates: {
+                status: 'complete',
+              },
+            },
+          });
+        }, 800);
 
         // Update context if provided
         if (response.context) {
+          const contextUpdate = {
+            focused_client_id: response.context.client_id,
+            focused_policy_id: response.context.policy_id,
+            focused_task_id: response.context.task_id,
+          };
           dispatch({
             type: 'SET_CONTEXT',
-            payload: {
-              focused_client_id: response.context.client_id,
-              focused_policy_id: response.context.policy_id,
-              focused_task_id: response.context.task_id,
-            },
+            payload: contextUpdate,
           });
+          
+          // Save to localStorage
+          if (response.context.client_id) {
+            setFocusedEntity('client', response.context.client_id);
+          }
+          if (response.context.policy_id) {
+            setFocusedEntity('policy', response.context.policy_id);
+          }
+          if (response.context.task_id) {
+            setFocusedEntity('task', response.context.task_id);
+          }
         }
 
         // Refresh tasks in case they were updated
@@ -190,13 +261,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         payload: error instanceof Error ? error.message : 'An error occurred',
       });
 
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
-        timestamp: new Date().toISOString(),
-      };
-      dispatch({ type: 'ADD_MESSAGE', payload: errorMessage });
+      // Update pending message to show error
+      dispatch({
+        type: 'UPDATE_MESSAGE',
+        payload: {
+          id: pendingMessageId,
+          updates: {
+            content: 'Sorry, I encountered an error processing your request. Please try again.',
+            status: 'complete',
+          },
+        },
+      });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -209,6 +284,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const success = await approveTask(taskId);
       if (success) {
         await refreshTasks();
+        
+        // Record action in localStorage
+        recordAction('approve', 'task', taskId, 'success');
         
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
@@ -227,6 +305,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error approving task:', error);
+      recordAction('approve', 'task', taskId, 'error');
       dispatch({
         type: 'SET_ERROR',
         payload: 'Failed to approve task',
@@ -243,6 +322,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const success = await rejectTask(taskId, reason);
       if (success) {
         await refreshTasks();
+        
+        // Record action in localStorage
+        recordAction('reject', 'task', taskId, 'success');
         
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
@@ -261,6 +343,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error rejecting task:', error);
+      recordAction('reject', 'task', taskId, 'error');
       dispatch({
         type: 'SET_ERROR',
         payload: 'Failed to reject task',
@@ -294,6 +377,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       type: 'SET_CONTEXT',
       payload: { focused_client_id: clientId },
     });
+    // Save to localStorage
+    setFocusedEntity('client', clientId);
   }, []);
 
   const handleUndo = useCallback(() => {
@@ -302,7 +387,145 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const handleResetChat = useCallback(() => {
     dispatch({ type: 'RESET_CHAT' });
+    // Clear localStorage context
+    clearConversationContext();
   }, []);
+
+  // Phase 1: Action handlers
+  const handleSendEmail = useCallback(async (emailData: EmailComposerCardData) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const { sendEmail } = await import('@/services/actions-service');
+      const result = await sendEmail(emailData);
+      
+      if (result.success) {
+        // Record action in localStorage
+        recordAction('send_email', 'email', emailData.related_task_id || 'direct', 'success');
+        
+        const confirmMessage: Message = {
+          id: `confirm-${Date.now()}`,
+          role: 'assistant',
+          content: `Email sent successfully to ${emailData.to}!`,
+          timestamp: new Date().toISOString(),
+          cards: [{
+            type: 'confirmation',
+            data: {
+              type: 'success',
+              message: `Email "${emailData.subject}" has been sent to ${emailData.to}.`,
+            },
+          }],
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
+        
+        // Refresh tasks in case this was related to a task
+        if (emailData.related_task_id) {
+          await refreshTasks();
+        }
+      } else {
+        throw new Error(result.error || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      recordAction('send_email', 'email', emailData.related_task_id || 'direct', 'error');
+      
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: 'Failed to send email.',
+        timestamp: new Date().toISOString(),
+        cards: [{
+          type: 'confirmation',
+          data: {
+            type: 'error',
+            message: error instanceof Error ? error.message : 'Failed to send email. Please try again.',
+          },
+        }],
+      };
+      dispatch({ type: 'ADD_MESSAGE', payload: errorMessage });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [refreshTasks]);
+
+  const handleCopyToClipboard = useCallback(async (content: string) => {
+    try {
+      const { copyToClipboard } = await import('@/services/actions-service');
+      const result = await copyToClipboard(content);
+      
+      if (result.success) {
+        // Show brief confirmation (could use a toast instead)
+        const confirmMessage: Message = {
+          id: `confirm-${Date.now()}`,
+          role: 'assistant',
+          content: 'Content copied to clipboard!',
+          timestamp: new Date().toISOString(),
+          cards: [{
+            type: 'confirmation',
+            data: {
+              type: 'success',
+              message: 'Content has been copied to your clipboard.',
+            },
+          }],
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
+      }
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
+  }, []);
+
+  const handleExecuteAction = useCallback(async (
+    actionType: string,
+    entityType: string,
+    entityId: string,
+    payload?: Record<string, unknown>
+  ) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const { executeAction } = await import('@/services/actions-service');
+      const result = await executeAction(actionType, entityType, entityId, payload);
+      
+      if (result.success) {
+        recordAction(actionType, entityType as 'task' | 'client' | 'policy' | 'email', entityId, 'success');
+        
+        const confirmMessage: Message = {
+          id: `confirm-${Date.now()}`,
+          role: 'assistant',
+          content: result.message || 'Action completed successfully!',
+          timestamp: new Date().toISOString(),
+          cards: [{
+            type: 'confirmation',
+            data: {
+              type: 'success',
+              message: result.message || `${actionType} completed successfully.`,
+            },
+          }],
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
+        
+        // Refresh relevant data
+        if (entityType === 'task') {
+          await refreshTasks();
+        } else if (entityType === 'client') {
+          await refreshClients();
+        }
+      } else {
+        throw new Error(result.error || `Failed to execute ${actionType}`);
+      }
+    } catch (error) {
+      console.error(`Error executing action ${actionType}:`, error);
+      recordAction(actionType, entityType as 'task' | 'client' | 'policy' | 'email', entityId, 'error');
+      
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : `Failed to execute ${actionType}`,
+      });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [refreshTasks, refreshClients]);
 
   const contextValue: ChatContextValue = {
     ...state,
@@ -315,6 +538,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     handleResetChat,
     refreshTasks,
     refreshClients,
+    // Phase 1: Action handlers
+    handleSendEmail,
+    handleCopyToClipboard,
+    handleExecuteAction,
   };
 
   return (

@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Message } from '@/types/chat';
 import { MessageItem } from './message-item';
-import { TypingIndicator } from './typing-indicator';
 import { WelcomeMessage } from './welcome-message';
 
 interface MessageListProps {
@@ -20,7 +19,7 @@ export function MessageList({ messages, isLoading, onPromptClick }: MessageListP
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [messages]);
 
   if (messages.length === 0) {
     return <WelcomeMessage onPromptClick={onPromptClick} />;
@@ -33,8 +32,6 @@ export function MessageList({ messages, isLoading, onPromptClick }: MessageListP
           {messages.map((message) => (
             <MessageItem key={message.id} message={message} />
           ))}
-
-          {isLoading && <TypingIndicator />}
 
           <div ref={bottomRef} />
         </div>

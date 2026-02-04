@@ -2,7 +2,7 @@
  * State Types for Chat Context
  */
 
-import type { Message, Card, ChatContext as ApiChatContext } from './chat';
+import type { Message, Card, ChatContext as ApiChatContext, EmailComposerCardData } from './chat';
 import type { Task } from './task';
 import type { Client } from './client';
 
@@ -31,11 +31,15 @@ export interface ChatContextValue extends ChatState {
   handleResetChat: () => void;
   refreshTasks: () => Promise<void>;
   refreshClients: () => Promise<void>;
+  // Phase 1: Action handlers
+  handleSendEmail: (emailData: EmailComposerCardData) => Promise<void>;
+  handleCopyToClipboard: (content: string) => Promise<void>;
+  handleExecuteAction: (actionType: string, entityType: string, entityId: string, payload?: Record<string, unknown>) => Promise<void>;
 }
 
 export type ChatAction =
   | { type: 'ADD_MESSAGE'; payload: Message }
-  | { type: 'UPDATE_MESSAGE'; payload: { id: string; content: string; cards?: Card[] } }
+  | { type: 'UPDATE_MESSAGE'; payload: { id: string; updates: Partial<Message> } }
   | { type: 'APPEND_TO_MESSAGE'; payload: { id: string; content: string } }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
