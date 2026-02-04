@@ -49,6 +49,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          NEXT_PUBLIC_CHAT_STREAM_ENDPOINT: ${{ secrets.CHAT_STREAM_ENDPOINT }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

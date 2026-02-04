@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import type { ChatState, ChatAction, ChatContextValue } from '@/types/state';
-import type { Message, ChatContext as ApiChatContext, EmailComposerCardData, StreamingStatus } from '@/types/chat';
+import type { Message, ChatContext as ApiChatContext, EmailComposerCardData, StreamingStatus, StatusHistoryEntry } from '@/types/chat';
 import { sendChatMessage } from '@/services/chat-service';
 import { listClients } from '@/services/clients-service';
 import { listTasks, approveTask, rejectTask, completeTask } from '@/services/tasks-service';
@@ -120,6 +120,7 @@ const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const pendingMessageIdRef = useRef<string | null>(null);
+  const statusHistoryRef = useRef<StatusHistoryEntry[]>([]);
 
   // Streaming chat hook
   const streaming = useStreamingChat({
@@ -130,7 +131,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         payload: { status, progress },
       });
 
-      // Update the pending message metadata with real streaming status
+      // Accumulate status history (skip 'complete' and 'error' terminal states)
+      if (status !== 'complete' && status !== 'error') {
+        if (!statusHistoryRef.current.some(entry => entry.status === status)) {
+          statusHistoryRef.current.push({
+            status,
+            message,
+            progress,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Update the pending message metadata with real streaming status + history
       if (pendingMessageIdRef.current) {
         dispatch({
           type: 'UPDATE_MESSAGE',
@@ -141,6 +154,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 step: message,
                 streamingStatus: status,
                 streamingProgress: progress,
+                statusHistory: [...statusHistoryRef.current],
               },
             },
           },
@@ -265,6 +279,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     // Create pending assistant message
     const pendingMessageId = `assistant-${Date.now()}`;
     pendingMessageIdRef.current = pendingMessageId;
+    statusHistoryRef.current = [];
     const pendingMessage: Message = {
       id: pendingMessageId,
       role: 'assistant',

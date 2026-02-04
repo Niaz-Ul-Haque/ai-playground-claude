@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, ChevronDown } from 'lucide-react';
+import { Bot, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MessageStatus, MessageMetadata, StreamingStatus } from '@/types/chat';
+import type { MessageStatus, MessageMetadata } from '@/types/chat';
 import { streamingStatusDisplay } from '@/types/chat';
 
 interface PendingMessageContentProps {
@@ -13,31 +12,18 @@ interface PendingMessageContentProps {
 }
 
 export function PendingMessageContent({ status, metadata }: PendingMessageContentProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
   const streamingStatus = metadata?.streamingStatus;
   const streamingProgress = metadata?.streamingProgress ?? 0;
-
-  // Auto-close Details when status becomes 'complete' or 'typing'
-  useEffect(() => {
-    if (status === 'typing' || status === 'complete') {
-      setIsOpen(false);
-    }
-  }, [status]);
+  const statusHistory = metadata?.statusHistory ?? [];
 
   // Determine the display text from real streaming status or fallback to metadata.step
   const displayStep = streamingStatus
     ? streamingStatusDisplay[streamingStatus]
-    : metadata?.step || 'Gathering context...';
+    : metadata?.step || 'Connecting...';
 
-  const getStatusText = () => {
-    if (status === 'pending') return 'is thinking...';
-    if (status === 'typing') return 'is typing...';
-    return null;
-  };
-
-  const statusText = getStatusText();
-  const showStatus = status === 'pending' || status === 'typing';
+  // Build the steps to display: completed ones from history + current active
+  const completedStatuses = new Set(statusHistory.map(h => h.status));
+  const currentStatus = streamingStatus;
 
   return (
     <div className="flex gap-3 p-4">
@@ -47,25 +33,53 @@ export function PendingMessageContent({ status, metadata }: PendingMessageConten
         </AvatarFallback>
       </Avatar>
 
-      <div className="flex-1 space-y-2">
-        {/* Name and Status */}
+      <div className="flex-1 space-y-3">
+        {/* Name */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Ciri</span>
-          {showStatus && (
-            <span className="text-xs text-muted-foreground" aria-live="polite">
-              {statusText}
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground" aria-live="polite">
+            is working...
+          </span>
         </div>
 
-        {/* Progress Step - Real streaming status or fallback */}
-        {status === 'pending' && (
-          <div className="text-xs text-muted-foreground">
-            {displayStep}
+        {/* Status Timeline */}
+        {status === 'pending' && statusHistory.length > 0 && (
+          <div className="space-y-1">
+            {statusHistory.map((entry, index) => {
+              const isCurrentStep = entry.status === currentStatus;
+              const isCompleted = !isCurrentStep && completedStatuses.has(entry.status);
+
+              return (
+                <div
+                  key={entry.status}
+                  className={cn(
+                    'flex items-center gap-2 text-xs transition-all duration-300',
+                    isCurrentStep
+                      ? 'text-foreground font-medium'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {isCurrentStep ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  )}
+                  <span>{entry.message}</span>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Progress Bar - Only shown when we have real streaming progress */}
+        {/* Fallback when no history yet */}
+        {status === 'pending' && statusHistory.length === 0 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+            <span>{displayStep}</span>
+          </div>
+        )}
+
+        {/* Progress Bar */}
         {status === 'pending' && streamingProgress > 0 && (
           <div className="max-w-xs">
             <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -74,39 +88,6 @@ export function PendingMessageContent({ status, metadata }: PendingMessageConten
                 style={{ width: `${streamingProgress}%` }}
               />
             </div>
-          </div>
-        )}
-
-        {/* Thinking Animation */}
-        {status === 'pending' && (
-          <div className="inline-flex items-center gap-1 px-4 py-3 bg-muted rounded-lg">
-            <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
-            <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
-            <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" />
-          </div>
-        )}
-
-        {/* Expandable Details Section */}
-        {(status === 'pending' || status === 'typing') && metadata?.details && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setIsOpen(!isOpen)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ChevronDown
-                className={cn(
-                  'h-3 w-3 transition-transform',
-                  isOpen && 'rotate-180'
-                )}
-              />
-              Details
-            </button>
-            {isOpen && (
-              <div className="mt-2 text-xs text-muted-foreground space-y-1 px-2 py-1">
-                <div className="pl-3">{metadata.details}</div>
-              </div>
-            )}
           </div>
         )}
       </div>

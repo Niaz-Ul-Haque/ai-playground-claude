@@ -108,11 +108,19 @@ export type CardType =
 
 export type MessageStatus = 'pending' | 'typing' | 'complete';
 
+export interface StatusHistoryEntry {
+  status: StreamingStatus;
+  message: string;
+  progress: number;
+  timestamp: string;
+}
+
 export interface MessageMetadata {
   step?: string;
   details?: string;
   streamingStatus?: StreamingStatus;
   streamingProgress?: number;
+  statusHistory?: StatusHistoryEntry[];
 }
 
 export interface Message {
