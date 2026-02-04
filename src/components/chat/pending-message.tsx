@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Bot, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MessageStatus, MessageMetadata } from '@/types/chat';
+import type { MessageStatus, MessageMetadata, StreamingStatus } from '@/types/chat';
+import { streamingStatusDisplay } from '@/types/chat';
 
 interface PendingMessageContentProps {
   status: MessageStatus;
@@ -12,8 +13,10 @@ interface PendingMessageContentProps {
 }
 
 export function PendingMessageContent({ status, metadata }: PendingMessageContentProps) {
-  const [isOpen, setIsOpen] = useState(status === 'pending');
-  const [progressStep, setProgressStep] = useState('Gathering context…');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const streamingStatus = metadata?.streamingStatus;
+  const streamingProgress = metadata?.streamingProgress ?? 0;
 
   // Auto-close Details when status becomes 'complete' or 'typing'
   useEffect(() => {
@@ -22,27 +25,14 @@ export function PendingMessageContent({ status, metadata }: PendingMessageConten
     }
   }, [status]);
 
-  // Timed heuristic for progress steps (only when status is 'pending')
-  useEffect(() => {
-    if (status !== 'pending') return;
-
-    const timer1 = setTimeout(() => {
-      setProgressStep('Preparing response…');
-    }, 1000);
-
-    const timer2 = setTimeout(() => {
-      setProgressStep('Still working…');
-    }, 3000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, [status]);
+  // Determine the display text from real streaming status or fallback to metadata.step
+  const displayStep = streamingStatus
+    ? streamingStatusDisplay[streamingStatus]
+    : metadata?.step || 'Gathering context...';
 
   const getStatusText = () => {
-    if (status === 'pending') return 'is thinking…';
-    if (status === 'typing') return 'is typing…';
+    if (status === 'pending') return 'is thinking...';
+    if (status === 'typing') return 'is typing...';
     return null;
   };
 
@@ -68,6 +58,25 @@ export function PendingMessageContent({ status, metadata }: PendingMessageConten
           )}
         </div>
 
+        {/* Progress Step - Real streaming status or fallback */}
+        {status === 'pending' && (
+          <div className="text-xs text-muted-foreground">
+            {displayStep}
+          </div>
+        )}
+
+        {/* Progress Bar - Only shown when we have real streaming progress */}
+        {status === 'pending' && streamingProgress > 0 && (
+          <div className="max-w-xs">
+            <div className="h-1 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500 ease-out rounded-full"
+                style={{ width: `${streamingProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Thinking Animation */}
         {status === 'pending' && (
           <div className="inline-flex items-center gap-1 px-4 py-3 bg-muted rounded-lg">
@@ -78,7 +87,7 @@ export function PendingMessageContent({ status, metadata }: PendingMessageConten
         )}
 
         {/* Expandable Details Section */}
-        {(status === 'pending' || status === 'typing') && (
+        {(status === 'pending' || status === 'typing') && metadata?.details && (
           <div>
             <button
               type="button"
@@ -95,15 +104,7 @@ export function PendingMessageContent({ status, metadata }: PendingMessageConten
             </button>
             {isOpen && (
               <div className="mt-2 text-xs text-muted-foreground space-y-1 px-2 py-1">
-                {status === 'pending' && (
-                  <>
-                    <div>• {metadata?.step || progressStep}</div>
-                    {metadata?.details && <div className="pl-3">{metadata.details}</div>}
-                  </>
-                )}
-                {status === 'typing' && (
-                  <div>• Rendering response…</div>
-                )}
+                <div className="pl-3">{metadata.details}</div>
               </div>
             )}
           </div>

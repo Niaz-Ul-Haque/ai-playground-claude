@@ -102,7 +102,7 @@ export function ProposalCard({ data }: ProposalCardProps) {
 
       <CardContent className="space-y-4">
         {/* Products Section */}
-        {data.products.length > 0 && (
+        {data.products && data.products.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-2">Products</h4>
             <div className="grid gap-2">
@@ -140,7 +140,7 @@ export function ProposalCard({ data }: ProposalCardProps) {
         )}
 
         {/* Pricing Table */}
-        {data.pricing_table.length > 0 && (
+        {data.pricing_table && data.pricing_table.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-2">Pricing Options</h4>
             <div className="border rounded-lg overflow-hidden">
@@ -161,7 +161,7 @@ export function ProposalCard({ data }: ProposalCardProps) {
                       <td className="p-2">{pricing.coverage}</td>
                       <td className="p-2 text-right font-medium">{formatCurrency(pricing.monthly_premium)}</td>
                       <td className="p-2 text-right">{formatCurrency(pricing.annual_premium)}</td>
-                      {data.pricing_table.some(p => p.term) && (
+                      {data.pricing_table?.some(p => p.term) && (
                         <td className="p-2 text-center text-muted-foreground">{pricing.term || '-'}</td>
                       )}
                     </tr>

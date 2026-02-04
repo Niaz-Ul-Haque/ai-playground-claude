@@ -25,6 +25,9 @@ export function ComparisonCard({ data }: ComparisonCardProps) {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  const items = data.items || [];
+  const attributes = data.attributes || [];
+
   const handleSelect = async (itemId: string) => {
     setSelectedItem(itemId);
     setActionLoading(true);
@@ -75,7 +78,7 @@ export function ComparisonCard({ data }: ComparisonCardProps) {
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left p-3 font-medium border-r min-w-[140px]">Feature</th>
-                {data.items.map((item) => (
+                {items.map((item) => (
                   <th key={item.id} className="p-3 font-medium text-center min-w-[120px]">
                     <div className="flex flex-col items-center gap-1">
                       <span>{item.name}</span>
@@ -90,10 +93,10 @@ export function ComparisonCard({ data }: ComparisonCardProps) {
               </tr>
             </thead>
             <tbody>
-              {data.attributes.map((attr, idx) => (
+              {attributes.map((attr, idx) => (
                 <tr key={attr.key} className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
                   <td className="p-3 font-medium border-r">{attr.label}</td>
-                  {data.items.map((item) => {
+                  {items.map((item) => {
                     const value = attr.values[item.id];
                     const isWinner = attr.winner === item.id;
                     
@@ -131,9 +134,9 @@ export function ComparisonCard({ data }: ComparisonCardProps) {
         )}
       </CardContent>
 
-      {actions.includes('select') && (
+      {actions.includes('select') && items.length > 0 && (
         <CardFooter className="flex gap-2 flex-wrap pt-4 border-t">
-          {data.items.map((item) => (
+          {items.map((item) => (
             <Button
               key={item.id}
               variant={selectedItem === item.id ? 'default' : 'outline'}

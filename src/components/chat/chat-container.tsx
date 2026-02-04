@@ -4,10 +4,10 @@ import { useChatContext } from '@/context/chat-context';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
 import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Square } from 'lucide-react';
 
 export function ChatContainer() {
-  const { messages, isLoading, sendMessage, handleResetChat } = useChatContext();
+  const { messages, isLoading, sendMessage, cancelMessage, handleResetChat } = useChatContext();
 
   const handleSend = async (message: string) => {
     await sendMessage(message);
@@ -48,7 +48,12 @@ export function ChatContainer() {
         onPromptClick={handlePromptClick}
       />
 
-      <ChatInput onSend={handleSend} disabled={isLoading} />
+      <ChatInput
+        onSend={handleSend}
+        disabled={isLoading}
+        isLoading={isLoading}
+        onCancel={cancelMessage}
+      />
     </div>
   );
 }

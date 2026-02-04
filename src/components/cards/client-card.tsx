@@ -14,11 +14,23 @@ interface ClientCardProps {
 
 // Type guard to check if client has full Client properties
 function isFullClient(client: ClientCardData['client']): client is Client {
-  return 'address_line_1' in client || 'internal_notes' in client || 'client_tags' in client;
+  return !!client && ('address_line_1' in client || 'internal_notes' in client || 'client_tags' in client);
 }
 
 export function ClientCard({ data }: ClientCardProps) {
   const { client, recent_tasks } = data;
+  
+  // Handle missing client data
+  if (!client) {
+    return (
+      <Card className="my-4 border-l-4 border-l-amber-500">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">Client information not available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const fullName = getClientFullName(client);
 
   const getRiskProfileColor = (profile: string | undefined) => {

@@ -3,16 +3,18 @@
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Mic, MicOff } from 'lucide-react';
+import { Send, Mic, MicOff, Square } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  isLoading?: boolean;
+  onCancel?: () => void;
 }
 
 const MAX_CHARS = 2000;
 
-export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
+export function ChatInput({ onSend, disabled = false, isLoading = false, onCancel }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -142,15 +144,27 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
             </span>
           </Button>
 
-          <Button
-            onClick={handleSend}
-            disabled={disabled || !message.trim() || isOverLimit}
-            size="icon"
-            className="h-[60px] w-[60px] shrink-0"
-          >
-            <Send className="h-5 w-5" />
-            <span className="sr-only">Send message</span>
-          </Button>
+          {isLoading && onCancel ? (
+            <Button
+              onClick={onCancel}
+              size="icon"
+              variant="destructive"
+              className="h-[60px] w-[60px] shrink-0"
+            >
+              <Square className="h-5 w-5" />
+              <span className="sr-only">Cancel request</span>
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSend}
+              disabled={disabled || !message.trim() || isOverLimit}
+              size="icon"
+              className="h-[60px] w-[60px] shrink-0"
+            >
+              <Send className="h-5 w-5" />
+              <span className="sr-only">Send message</span>
+            </Button>
+          )}
         </div>
 
         <p className="text-xs text-muted-foreground mt-2">

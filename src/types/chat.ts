@@ -6,6 +6,77 @@ import type { Task, TaskSummary, AIActionType } from './task';
 import type { Client, ClientSummary } from './client';
 import type { Policy, PolicySummary } from './policy';
 
+// =============================================================================
+// Streaming SSE Types
+// =============================================================================
+
+export type StreamingStatus =
+  | 'connecting'
+  | 'classifying_intent'
+  | 'resolving_context'
+  | 'gathering_data'
+  | 'executing_action'
+  | 'building_prompt'
+  | 'calling_llm'
+  | 'parsing_response'
+  | 'complete'
+  | 'error';
+
+export type SSEEventType = 'status' | 'progress' | 'partial' | 'result' | 'error';
+
+export interface SSEEventData {
+  status?: StreamingStatus;
+  message?: string;
+  progress?: number;
+  partial_content?: string;
+  result?: StreamingChatResponse;
+  error?: string;
+}
+
+/** Response shape from the streaming endpoint's result event */
+export interface StreamingChatResponse {
+  content: string;
+  cards?: Card[];
+  context?: StreamingChatContext;
+  tasks_updated?: boolean;
+  error?: string;
+}
+
+/** Context returned/sent by the streaming endpoint */
+export interface StreamingChatContext {
+  session_id?: string;
+  focused_task_id?: string;
+  focused_client_id?: string;
+  focused_policy_id?: string;
+  last_intent?: string;
+  collected_entities?: {
+    client_ids: string[];
+    policy_ids: string[];
+    task_ids: string[];
+  };
+  recent_actions?: string[];
+  has_pending_drafts?: boolean;
+  session_started_at?: string;
+}
+
+/** Display text mapping for streaming status phases */
+export const streamingStatusDisplay: Record<StreamingStatus, string> = {
+  connecting: 'Connecting...',
+  classifying_intent: 'Understanding your request...',
+  resolving_context: 'Checking context...',
+  gathering_data: 'Gathering information...',
+  executing_action: 'Executing action...',
+  building_prompt: 'Preparing response...',
+  calling_llm: 'Ciri is thinking...',
+  parsing_response: 'Processing...',
+  complete: '',
+  error: 'Something went wrong',
+};
+
+// =============================================================================
+// Core Message Types
+// =============================================================================
+
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export type CardType =
@@ -40,6 +111,8 @@ export type MessageStatus = 'pending' | 'typing' | 'complete';
 export interface MessageMetadata {
   step?: string;
   details?: string;
+  streamingStatus?: StreamingStatus;
+  streamingProgress?: number;
 }
 
 export interface Message {
@@ -92,7 +165,7 @@ export interface TaskCardData {
 }
 
 export interface ClientCardData {
-  client: Client | ClientSummary;
+  client?: Client | ClientSummary;
   show_policies?: boolean;
   recent_tasks?: TaskSummary[];
 }
@@ -103,7 +176,7 @@ export interface ClientListCardData {
 }
 
 export interface PolicyCardData {
-  policy: Policy | PolicySummary;
+  policy?: Policy | PolicySummary;
   show_claims?: boolean;
 }
 
@@ -274,14 +347,14 @@ export interface ProposalCardData {
   title: string;
   client_id?: string;
   client_name?: string;
-  products: Array<{
+  products?: Array<{
     product_id: string;
     name: string;
     type: string;
     carrier?: string;
     recommended?: boolean;
   }>;
-  pricing_table: Array<{
+  pricing_table?: Array<{
     coverage: string;
     monthly_premium: number;
     annual_premium: number;
@@ -297,12 +370,12 @@ export interface ProposalCardData {
 
 export interface ComparisonCardData {
   title: string;
-  items: Array<{
+  items?: Array<{
     id: string;
     name: string;
     recommended?: boolean;
   }>;
-  attributes: Array<{
+  attributes?: Array<{
     key: string;
     label: string;
     format?: 'text' | 'boolean' | 'number' | 'currency';
@@ -332,23 +405,23 @@ export interface DashboardCardData {
 export interface PortfolioReviewCardData {
   client_id: string;
   client_name: string;
-  total_value: number;
-  total_change: number;
-  total_change_percent: number;
+  total_value?: number;
+  total_change?: number;
+  total_change_percent?: number;
   period: string;
   allocation: Array<{
     category: string;
-    value: number;
-    percent: number;
+    value?: number;
+    percent?: number;
     change?: number;
   }>;
   holdings?: Array<{
     name: string;
     ticker?: string;
-    value: number;
+    value?: number;
     shares?: number;
-    change: number;
-    change_percent: number;
+    change?: number;
+    change_percent?: number;
   }>;
   performance_history?: Array<{
     date: string;
@@ -448,7 +521,7 @@ export interface ProgressTrackerCardData {
 
 export interface RenewalNoticeCardData {
   title?: string;
-  policies: Array<{
+  policies?: Array<{
     policy_id: string;
     policy_number: string;
     type: string;
@@ -466,7 +539,7 @@ export interface RenewalNoticeCardData {
 
 export interface DocumentPreviewCardData {
   title?: string;
-  documents: Array<{
+  documents?: Array<{
     id: string;
     name: string;
     type: string;

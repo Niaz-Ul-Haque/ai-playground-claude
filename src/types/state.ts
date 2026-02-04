@@ -2,7 +2,7 @@
  * State Types for Chat Context
  */
 
-import type { Message, Card, ChatContext as ApiChatContext, EmailComposerCardData } from './chat';
+import type { Message, Card, ChatContext as ApiChatContext, EmailComposerCardData, StreamingStatus } from './chat';
 import type { Task } from './task';
 import type { Client } from './client';
 
@@ -19,10 +19,14 @@ export interface ChatState {
     current_view?: string;
     last_intent?: string;
   };
+  // Streaming state
+  streamingStatus: StreamingStatus | null;
+  streamingProgress: number;
 }
 
 export interface ChatContextValue extends ChatState {
   sendMessage: (message: string) => Promise<void>;
+  cancelMessage: () => void;
   handleApproveTask: (taskId: string) => Promise<void>;
   handleRejectTask: (taskId: string, reason?: string) => Promise<void>;
   handleCompleteTask: (taskId: string) => Promise<void>;
@@ -46,6 +50,7 @@ export type ChatAction =
   | { type: 'SET_CONTEXT'; payload: Partial<ChatState['currentContext']> }
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'SET_CLIENTS'; payload: Client[] }
+  | { type: 'SET_STREAMING_STATUS'; payload: { status: StreamingStatus | null; progress: number } }
   | { type: 'RESET_CHAT' };
 
 // Re-export for convenience

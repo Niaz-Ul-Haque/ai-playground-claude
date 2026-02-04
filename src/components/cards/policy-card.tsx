@@ -13,6 +13,16 @@ interface PolicyCardProps {
 export function PolicyCard({ data }: PolicyCardProps) {
   const { policy } = data;
 
+  if (!policy) {
+    return (
+      <Card className="my-4">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">Policy information not available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const getStatusColor = (status: string | undefined) => {
     switch (status) {
       case 'Active':

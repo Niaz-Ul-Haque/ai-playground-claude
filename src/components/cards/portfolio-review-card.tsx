@@ -70,7 +70,7 @@ export function PortfolioReviewCard({ data }: PortfolioReviewCardProps) {
 
   const allocationChartData = data.allocation.map(item => ({
     name: item.category,
-    value: item.percent,
+    value: item.percent ?? 0,
   }));
 
   const performanceChartData = data.performance_history?.map(item => ({
@@ -87,7 +87,7 @@ export function PortfolioReviewCard({ data }: PortfolioReviewCardProps) {
 
   const holdingsRows = data.holdings?.map(h => ({
     ...h,
-    change_display: `${h.change >= 0 ? '+' : ''}${formatCurrency(h.change)} (${h.change_percent >= 0 ? '+' : ''}${h.change_percent.toFixed(2)}%)`,
+    change_display: `${(h.change ?? 0) >= 0 ? '+' : ''}${formatCurrency(h.change ?? 0)} (${(h.change_percent ?? 0) >= 0 ? '+' : ''}${(h.change_percent ?? 0).toFixed(2)}%)`,
   })) || [];
 
   const actions = data.available_actions || ['rebalance', 'export', 'compare_benchmark'];
@@ -119,25 +119,25 @@ export function PortfolioReviewCard({ data }: PortfolioReviewCardProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
           <div>
             <p className="text-sm text-muted-foreground">Total Value</p>
-            <p className="text-xl font-bold">{formatCurrency(data.total_value)}</p>
+            <p className="text-xl font-bold">{formatCurrency(data.total_value ?? 0)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total Change</p>
             <div className="flex items-center gap-1">
-              {data.total_change >= 0 ? (
+              {(data.total_change ?? 0) >= 0 ? (
                 <TrendingUp className="w-4 h-4 text-green-500" />
               ) : (
                 <TrendingDown className="w-4 h-4 text-red-500" />
               )}
-              <p className={`text-xl font-bold ${data.total_change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {data.total_change >= 0 ? '+' : ''}{formatCurrency(data.total_change)}
+              <p className={`text-xl font-bold ${(data.total_change ?? 0) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {(data.total_change ?? 0) >= 0 ? '+' : ''}{formatCurrency(data.total_change ?? 0)}
               </p>
             </div>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Return</p>
-            <p className={`text-xl font-bold ${data.total_change_percent >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-              {data.total_change_percent >= 0 ? '+' : ''}{data.total_change_percent.toFixed(2)}%
+            <p className={`text-xl font-bold ${(data.total_change_percent ?? 0) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {(data.total_change_percent ?? 0) >= 0 ? '+' : ''}{(data.total_change_percent ?? 0).toFixed(2)}%
             </p>
           </div>
           <div className="flex items-center justify-center">
@@ -189,7 +189,7 @@ export function PortfolioReviewCard({ data }: PortfolioReviewCardProps) {
               <DonutChart
                 data={allocationChartData}
                 centerLabel="Total"
-                centerValue={formatCurrency(data.total_value)}
+                centerValue={formatCurrency(data.total_value ?? 0)}
               />
             </div>
             <div className="space-y-2">
@@ -198,9 +198,9 @@ export function PortfolioReviewCard({ data }: PortfolioReviewCardProps) {
                 <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded">
                   <span className="text-sm">{item.category}</span>
                   <div className="text-right">
-                    <span className="font-medium">{item.percent.toFixed(1)}%</span>
+                    <span className="font-medium">{(item.percent ?? 0).toFixed(1)}%</span>
                     <span className="text-sm text-muted-foreground ml-2">
-                      ({formatCurrency(item.value)})
+                      ({formatCurrency(item.value ?? 0)})
                     </span>
                     {item.change !== undefined && (
                       <span className={`text-xs ml-2 ${item.change >= 0 ? 'text-green-600' : 'text-red-500'}`}>

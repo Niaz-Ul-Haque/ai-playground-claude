@@ -1,11 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import type { ChatState, ChatAction, ChatContextValue } from '@/types/state';
-import type { Message, ChatContext as ApiChatContext, EmailComposerCardData } from '@/types/chat';
+import type { Message, ChatContext as ApiChatContext, EmailComposerCardData, StreamingStatus } from '@/types/chat';
 import { sendChatMessage } from '@/services/chat-service';
 import { listClients } from '@/services/clients-service';
 import { listTasks, approveTask, rejectTask, completeTask } from '@/services/tasks-service';
+import { useStreamingChat } from '@/hooks/useStreamingChat';
 import {
   loadConversationContext,
   saveConversationContext,
@@ -17,6 +18,8 @@ import {
   type AccumulatedContext,
 } from '@/lib/chat/storage';
 
+const STREAMING_ENDPOINT = process.env.NEXT_PUBLIC_CHAT_STREAM_ENDPOINT || '';
+
 const initialState: ChatState = {
   messages: [],
   tasks: [],
@@ -24,6 +27,8 @@ const initialState: ChatState = {
   isLoading: false,
   error: null,
   currentContext: {},
+  streamingStatus: null,
+  streamingProgress: 0,
 };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -88,12 +93,21 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         clients: action.payload,
       };
 
+    case 'SET_STREAMING_STATUS':
+      return {
+        ...state,
+        streamingStatus: action.payload.status,
+        streamingProgress: action.payload.progress,
+      };
+
     case 'RESET_CHAT':
       return {
         ...state,
         messages: [],
         error: null,
         currentContext: {},
+        streamingStatus: null,
+        streamingProgress: 0,
       };
 
     default:
@@ -105,6 +119,35 @@ const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+  const pendingMessageIdRef = useRef<string | null>(null);
+
+  // Streaming chat hook
+  const streaming = useStreamingChat({
+    streamingEndpoint: STREAMING_ENDPOINT,
+    onStatusChange: (status, message, progress) => {
+      dispatch({
+        type: 'SET_STREAMING_STATUS',
+        payload: { status, progress },
+      });
+
+      // Update the pending message metadata with real streaming status
+      if (pendingMessageIdRef.current) {
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            id: pendingMessageIdRef.current,
+            updates: {
+              metadata: {
+                step: message,
+                streamingStatus: status,
+                streamingProgress: progress,
+              },
+            },
+          },
+        });
+      }
+    },
+  });
 
   // Load context from localStorage on mount
   useEffect(() => {
@@ -129,7 +172,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           listTasks(),
           listClients(),
         ]);
-        // Convert TaskSummary[] to Task[] (they share compatible fields)
         dispatch({ type: 'SET_TASKS', payload: tasksData as any });
         dispatch({ type: 'SET_CLIENTS', payload: clientsData as any });
       } catch (error) {
@@ -157,6 +199,59 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /**
+   * Non-streaming fallback: uses the original /api/chat endpoint
+   */
+  const sendNonStreamingMessage = useCallback(async (
+    content: string,
+    pendingMessageId: string,
+    apiContext: ApiChatContext & Record<string, unknown>
+  ) => {
+    const response = await sendChatMessage(content, state.messages, apiContext as ApiChatContext);
+
+    if (response) {
+      dispatch({
+        type: 'UPDATE_MESSAGE',
+        payload: {
+          id: pendingMessageId,
+          updates: {
+            status: 'typing',
+            content: response.message,
+            cards: response.cards,
+            metadata: undefined,
+          },
+        },
+      });
+
+      setTimeout(() => {
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            id: pendingMessageId,
+            updates: { status: 'complete' },
+          },
+        });
+      }, 800);
+
+      if (response.context) {
+        const contextUpdate = {
+          focused_client_id: response.context.client_id,
+          focused_policy_id: response.context.policy_id,
+          focused_task_id: response.context.task_id,
+        };
+        dispatch({ type: 'SET_CONTEXT', payload: contextUpdate });
+
+        if (response.context.client_id) setFocusedEntity('client', response.context.client_id);
+        if (response.context.policy_id) setFocusedEntity('policy', response.context.policy_id);
+        if (response.context.task_id) setFocusedEntity('task', response.context.task_id);
+      }
+
+      await refreshTasks();
+    } else {
+      throw new Error('No response from server');
+    }
+  }, [state.messages, refreshTasks]);
+
   const sendMessage = useCallback(async (content: string) => {
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -166,19 +261,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
 
     dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-    
-    // Create pending assistant message immediately
+
+    // Create pending assistant message
     const pendingMessageId = `assistant-${Date.now()}`;
+    pendingMessageIdRef.current = pendingMessageId;
     const pendingMessage: Message = {
       id: pendingMessageId,
       role: 'assistant',
       content: '',
       timestamp: new Date().toISOString(),
       status: 'pending',
-      metadata: { step: 'Gathering context…' },
+      metadata: { step: 'Connecting...' },
     };
     dispatch({ type: 'ADD_MESSAGE', payload: pendingMessage });
-    
+
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
 
@@ -186,73 +282,90 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // Get accumulated context from localStorage
       const accumulatedContext = getContextForApi();
 
-      // Build context for API (merge with accumulated context)
+      // Build context for API
       const apiContext: ApiChatContext & Record<string, unknown> = {
         current_client_id: state.currentContext.focused_client_id,
         current_policy_id: state.currentContext.focused_policy_id,
         current_task_id: state.currentContext.focused_task_id,
         current_view: state.currentContext.current_view,
-        // Include accumulated context for AI
         ...accumulatedContext,
       };
 
-      const response = await sendChatMessage(content, state.messages, apiContext as ApiChatContext);
+      // Build conversation history for streaming
+      const conversationHistory = state.messages.slice(-10).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
 
-      if (response) {
-        // Transition to 'typing' state
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          payload: {
-            id: pendingMessageId,
-            updates: {
-              status: 'typing',
-              content: response.message,
-              cards: response.cards,
+      // Try streaming first, fall back to non-streaming
+      const useStreaming = !!STREAMING_ENDPOINT;
+
+      if (useStreaming) {
+        try {
+          const result = await streaming.sendMessage(
+            content,
+            {
+              focused_client_id: state.currentContext.focused_client_id,
+              focused_policy_id: state.currentContext.focused_policy_id,
+              focused_task_id: state.currentContext.focused_task_id,
+              ...accumulatedContext,
             },
-          },
-        });
+            conversationHistory
+          );
 
-        // After a brief delay, transition to 'complete' (remove status line)
-        setTimeout(() => {
-          dispatch({
-            type: 'UPDATE_MESSAGE',
-            payload: {
-              id: pendingMessageId,
-              updates: {
-                status: 'complete',
+          if (result) {
+            // Transition to typing then complete
+            dispatch({
+              type: 'UPDATE_MESSAGE',
+              payload: {
+                id: pendingMessageId,
+                updates: {
+                  status: 'typing',
+                  content: result.content,
+                  cards: result.cards,
+                  metadata: undefined,
+                },
               },
-            },
-          });
-        }, 800);
+            });
 
-        // Update context if provided
-        if (response.context) {
-          const contextUpdate = {
-            focused_client_id: response.context.client_id,
-            focused_policy_id: response.context.policy_id,
-            focused_task_id: response.context.task_id,
-          };
-          dispatch({
-            type: 'SET_CONTEXT',
-            payload: contextUpdate,
-          });
-          
-          // Save to localStorage
-          if (response.context.client_id) {
-            setFocusedEntity('client', response.context.client_id);
+            setTimeout(() => {
+              dispatch({
+                type: 'UPDATE_MESSAGE',
+                payload: {
+                  id: pendingMessageId,
+                  updates: { status: 'complete' },
+                },
+              });
+            }, 800);
+
+            // Update context from streaming response
+            if (result.context) {
+              const ctx = result.context;
+              const contextUpdate = {
+                focused_client_id: ctx.focused_client_id,
+                focused_policy_id: ctx.focused_policy_id,
+                focused_task_id: ctx.focused_task_id,
+              };
+              dispatch({ type: 'SET_CONTEXT', payload: contextUpdate });
+
+              if (ctx.focused_client_id) setFocusedEntity('client', ctx.focused_client_id);
+              if (ctx.focused_policy_id) setFocusedEntity('policy', ctx.focused_policy_id);
+              if (ctx.focused_task_id) setFocusedEntity('task', ctx.focused_task_id);
+            }
+
+            if (result.tasks_updated) {
+              await refreshTasks();
+            }
+          } else {
+            // null result means aborted, do nothing
           }
-          if (response.context.policy_id) {
-            setFocusedEntity('policy', response.context.policy_id);
-          }
-          if (response.context.task_id) {
-            setFocusedEntity('task', response.context.task_id);
-          }
+        } catch (streamError) {
+          console.warn('Streaming failed, falling back to non-streaming:', streamError);
+          await sendNonStreamingMessage(content, pendingMessageId, apiContext);
         }
-
-        // Refresh tasks in case they were updated
-        await refreshTasks();
       } else {
-        throw new Error('No response from server');
+        // No streaming endpoint configured, use non-streaming
+        await sendNonStreamingMessage(content, pendingMessageId, apiContext);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -261,7 +374,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         payload: error instanceof Error ? error.message : 'An error occurred',
       });
 
-      // Update pending message to show error
       dispatch({
         type: 'UPDATE_MESSAGE',
         payload: {
@@ -269,13 +381,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           updates: {
             content: 'Sorry, I encountered an error processing your request. Please try again.',
             status: 'complete',
+            metadata: undefined,
           },
         },
       });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({
+        type: 'SET_STREAMING_STATUS',
+        payload: { status: null, progress: 0 },
+      });
+      pendingMessageIdRef.current = null;
     }
-  }, [state.currentContext, state.messages, refreshTasks]);
+  }, [state.currentContext, state.messages, refreshTasks, streaming, sendNonStreamingMessage]);
+
+  const cancelMessage = useCallback(() => {
+    streaming.cancel();
+    dispatch({ type: 'SET_LOADING', payload: false });
+    dispatch({
+      type: 'SET_STREAMING_STATUS',
+      payload: { status: null, progress: 0 },
+    });
+
+    // Update the pending message to show cancelled
+    if (pendingMessageIdRef.current) {
+      dispatch({
+        type: 'UPDATE_MESSAGE',
+        payload: {
+          id: pendingMessageIdRef.current,
+          updates: {
+            content: 'Request cancelled.',
+            status: 'complete',
+            metadata: undefined,
+          },
+        },
+      });
+      pendingMessageIdRef.current = null;
+    }
+  }, [streaming]);
 
   const handleApproveTask = useCallback(async (taskId: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -284,10 +427,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const success = await approveTask(taskId);
       if (success) {
         await refreshTasks();
-        
-        // Record action in localStorage
+
         recordAction('approve', 'task', taskId, 'success');
-        
+
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
           role: 'assistant',
@@ -322,10 +464,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const success = await rejectTask(taskId, reason);
       if (success) {
         await refreshTasks();
-        
-        // Record action in localStorage
+
         recordAction('reject', 'task', taskId, 'success');
-        
+
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
           role: 'assistant',
@@ -377,7 +518,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       type: 'SET_CONTEXT',
       payload: { focused_client_id: clientId },
     });
-    // Save to localStorage
     setFocusedEntity('client', clientId);
   }, []);
 
@@ -386,10 +526,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleResetChat = useCallback(() => {
+    streaming.cancel();
     dispatch({ type: 'RESET_CHAT' });
-    // Clear localStorage context
     clearConversationContext();
-  }, []);
+  }, [streaming]);
 
   // Phase 1: Action handlers
   const handleSendEmail = useCallback(async (emailData: EmailComposerCardData) => {
@@ -398,11 +538,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     try {
       const { sendEmail } = await import('@/services/actions-service');
       const result = await sendEmail(emailData);
-      
+
       if (result.success) {
-        // Record action in localStorage
         recordAction('send_email', 'email', emailData.related_task_id || 'direct', 'success');
-        
+
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
           role: 'assistant',
@@ -417,8 +556,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }],
         };
         dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
-        
-        // Refresh tasks in case this was related to a task
+
         if (emailData.related_task_id) {
           await refreshTasks();
         }
@@ -428,7 +566,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error sending email:', error);
       recordAction('send_email', 'email', emailData.related_task_id || 'direct', 'error');
-      
+
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
@@ -452,9 +590,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     try {
       const { copyToClipboard } = await import('@/services/actions-service');
       const result = await copyToClipboard(content);
-      
+
       if (result.success) {
-        // Show brief confirmation (could use a toast instead)
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
           role: 'assistant',
@@ -486,10 +623,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     try {
       const { executeAction } = await import('@/services/actions-service');
       const result = await executeAction(actionType, entityType, entityId, payload);
-      
+
       if (result.success) {
         recordAction(actionType, entityType as 'task' | 'client' | 'policy' | 'email', entityId, 'success');
-        
+
         const confirmMessage: Message = {
           id: `confirm-${Date.now()}`,
           role: 'assistant',
@@ -504,8 +641,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }],
         };
         dispatch({ type: 'ADD_MESSAGE', payload: confirmMessage });
-        
-        // Refresh relevant data
+
         if (entityType === 'task') {
           await refreshTasks();
         } else if (entityType === 'client') {
@@ -517,7 +653,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error(`Error executing action ${actionType}:`, error);
       recordAction(actionType, entityType as 'task' | 'client' | 'policy' | 'email', entityId, 'error');
-      
+
       dispatch({
         type: 'SET_ERROR',
         payload: error instanceof Error ? error.message : `Failed to execute ${actionType}`,
@@ -530,6 +666,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const contextValue: ChatContextValue = {
     ...state,
     sendMessage,
+    cancelMessage,
     handleApproveTask,
     handleRejectTask,
     handleCompleteTask,

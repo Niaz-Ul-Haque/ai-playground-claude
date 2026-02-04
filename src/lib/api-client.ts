@@ -18,7 +18,7 @@ export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const url = `https://9qfa07254b.execute-api.ca-central-1.amazonaws.com/Stage${endpoint}`;
+  const url = `${API_BASE_URL}${endpoint}`;
 
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',

@@ -44,6 +44,8 @@ export function RenewalNoticeCard({ data }: RenewalNoticeCardProps) {
   const { handleExecuteAction } = useChatContext();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const policies = data.policies || [];
+
   const handleInitiateRenewal = async (policyId: string) => {
     setActionLoading(`renew-${policyId}`);
     try {
@@ -54,7 +56,7 @@ export function RenewalNoticeCard({ data }: RenewalNoticeCardProps) {
   };
 
   const handleContactClient = async (policyId: string) => {
-    const policy = data.policies.find(p => p.policy_id === policyId);
+    const policy = policies.find(p => p.policy_id === policyId);
     await handleExecuteAction('contact_client', 'policy', policyId, {
       client_name: policy?.client_name,
     });
@@ -70,7 +72,7 @@ export function RenewalNoticeCard({ data }: RenewalNoticeCardProps) {
   };
 
   const handleSetReminder = async (policyId: string) => {
-    const policy = data.policies.find(p => p.policy_id === policyId);
+    const policy = policies.find(p => p.policy_id === policyId);
     await handleExecuteAction('set_reminder', 'policy', policyId, {
       title: `Renewal reminder: ${policy?.policy_number}`,
       due_date: policy?.expiry_date,
@@ -149,7 +151,7 @@ export function RenewalNoticeCard({ data }: RenewalNoticeCardProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {data.policies.map(policy => (
+        {policies.map(policy => (
           <div
             key={policy.policy_id}
             className={`p-4 border rounded-lg ${
@@ -247,16 +249,16 @@ export function RenewalNoticeCard({ data }: RenewalNoticeCardProps) {
         ))}
       </CardContent>
 
-      {data.policies.length > 1 && (
+      {policies.length > 1 && (
         <CardFooter className="pt-4 border-t">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <FileText className="w-4 h-4" />
-              {data.policies.length} policies
+              {policies.length} policies
             </span>
             <span className="flex items-center gap-1">
               <AlertTriangle className="w-4 h-4" />
-              {data.policies.filter(p => p.status === 'overdue' || p.days_remaining <= 7).length} urgent
+              {policies.filter(p => p.status === 'overdue' || p.days_remaining <= 7).length} urgent
             </span>
           </div>
         </CardFooter>

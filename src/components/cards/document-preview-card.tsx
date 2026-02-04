@@ -42,7 +42,8 @@ export function DocumentPreviewCard({ data }: DocumentPreviewCardProps) {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(data.selected_document_id || null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const selectedDoc = data.documents.find(d => d.id === selectedDocId);
+  const documents = data.documents || [];
+  const selectedDoc = documents.find(d => d.id === selectedDocId);
 
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return '';
@@ -64,7 +65,7 @@ export function DocumentPreviewCard({ data }: DocumentPreviewCardProps) {
   const handleDownload = async (docId: string) => {
     setActionLoading(`download-${docId}`);
     try {
-      const doc = data.documents.find(d => d.id === docId);
+      const doc = documents.find(d => d.id === docId);
       if (doc?.url) {
         window.open(doc.url, '_blank');
       } else {
@@ -110,7 +111,7 @@ export function DocumentPreviewCard({ data }: DocumentPreviewCardProps) {
             <FileText className="w-5 h-5 text-orange-500" />
             <CardTitle className="text-lg">{data.title || 'Documents'}</CardTitle>
           </div>
-          <Badge variant="outline">{data.documents.length} file{data.documents.length !== 1 ? 's' : ''}</Badge>
+          <Badge variant="outline">{documents.length} file{documents.length !== 1 ? 's' : ''}</Badge>
         </div>
       </CardHeader>
 
@@ -178,7 +179,7 @@ export function DocumentPreviewCard({ data }: DocumentPreviewCardProps) {
 
         {/* Document Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {data.documents.map(doc => (
+          {documents.map(doc => (
             <div
               key={doc.id}
               className={`p-3 border rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${

@@ -76,17 +76,20 @@ export function parseMessageContent(content: string): ContentSegment[] {
 
     // Find the card type (between prefix and the colon before JSON)
     const typeStart = markerStart + CARD_PREFIX.length;
-    const jsonStart = content.indexOf(':{', typeStart);
+    const typeEnd = content.indexOf(':', typeStart);
 
-    if (jsonStart === -1) {
+    if (typeEnd === -1) {
       searchIndex = markerStart + 1;
       continue;
     }
 
-    const cardType = content.substring(typeStart, jsonStart);
+    const cardType = content.substring(typeStart, typeEnd);
+    
+    // JSON should start right after the colon
+    const jsonStart = typeEnd + 1;
 
-    // Extract the JSON starting after the colon
-    const jsonResult = extractJson(content, jsonStart + 1);
+    // Extract the JSON starting from jsonStart
+    const jsonResult = extractJson(content, jsonStart);
 
     if (!jsonResult) {
       searchIndex = markerStart + 1;

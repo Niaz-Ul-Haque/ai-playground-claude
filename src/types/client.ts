@@ -111,6 +111,7 @@ export interface ClientFilters {
 /**
  * Helper to get full name from client
  */
-export function getClientFullName(client: Client | ClientSummary): string {
-  return `${client.first_name} ${client.last_name}`.trim();
+export function getClientFullName(client: Client | ClientSummary | undefined): string {
+  if (!client) return 'Unknown Client';
+  return `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Unknown Client';
 }
